@@ -9,6 +9,8 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/helpers"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
+	ent "github.com/conductorone/baton-sdk/pkg/types/entitlement"
+	grant "github.com/conductorone/baton-sdk/pkg/types/grant"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
 )
 
@@ -93,12 +95,45 @@ func (o *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId,
 
 // Entitlements always returns an empty slice for users.
 func (o *userBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
-	return nil, "", nil, nil
+	var rv []*v2.Entitlement
+
+	for _, license := range licenses {
+		assigmentOptions := []ent.EntitlementOption{
+			ent.WithGrantableTo(userResourceType),
+			ent.WithDescription(fmt.Sprintf("Has %s license", resource.DisplayName)),
+			ent.WithDisplayName(fmt.Sprintf("%s is %s license owner", resource.DisplayName, license)),
+		}
+
+		entitlement := ent.NewAssignmentEntitlement(resource, license, assigmentOptions...)
+		rv = append(rv, entitlement)
+	}
+
+	return rv, "", nil, nil
 }
 
 // Grants always returns an empty slice for users since they don't have any entitlements.
 func (o *userBuilder) Grants(ctx context.Context, resource *v2.Resource, pToken *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	return nil, "", nil, nil
+	licenseGrants, err := o.licenseGrants(ctx, resource)
+	if err != nil {
+		return nil, "", nil, err
+	}
+
+	return licenseGrants, "", nil, nil
+}
+
+func (o *userBuilder) licenseGrants(ctx context.Context, resource *v2.Resource) ([]*v2.Grant, error) {
+	user, _, err := o.client.GetOrganizationMember(ctx, o.organizationId, resource.Id.Resource)
+	if err != nil {
+		return nil, wrapError(err, "failed to get user")
+	}
+
+	if !contains(licenses, user.License) {
+		return nil, wrapError(nil, "user does not have a valid license")
+	}
+
+	grant := grant.NewGrant(resource, user.License, resource.Id)
+
+	return []*v2.Grant{grant}, nil
 }
 
 func newUserBuilder(client *miro.Client, organizationId string) *userBuilder {

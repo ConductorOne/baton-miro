@@ -37,4 +37,13 @@ func wrapError(err error, message string) error {
 	return fmt.Errorf("miro-connector: %s: %w", message, err)
 }
 
+func contains(s []string, str string) bool {
+	for _, v := range s {
+		if v == str {
+			return true
+		}
+	}
+	return false
+}
+
 const resourcePageSize = 50

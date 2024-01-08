@@ -39,3 +39,20 @@ func (c *Client) GetOrganizationMembers(ctx context.Context, organizationId, cur
 
 	return users, resp, nil
 }
+
+func (c *Client) GetOrganizationMember(ctx context.Context, organizationId, userId string) (*User, *http.Response, error) {
+	url := fmt.Sprintf("%s/v1/orgs/%s/members/%s", c.baseUrl, organizationId, userId)
+
+	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodGet, url)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	user := new(User)
+	resp, err := c.do(req, user)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return user, resp, nil
+}
