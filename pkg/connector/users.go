@@ -108,6 +108,17 @@ func (o *userBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ *
 		rv = append(rv, entitlement)
 	}
 
+	for _, role := range organizationRoles {
+		assigmentOptions := []ent.EntitlementOption{
+			ent.WithGrantableTo(userResourceType),
+			ent.WithDescription(fmt.Sprintf("Has %s organization role", resource.DisplayName)),
+			ent.WithDisplayName(fmt.Sprintf("%s organization role %s", resource.DisplayName, role)),
+		}
+
+		entitlement := ent.NewAssignmentEntitlement(resource, role, assigmentOptions...)
+		rv = append(rv, entitlement)
+	}
+
 	return rv, "", nil, nil
 }
 
@@ -118,7 +129,14 @@ func (o *userBuilder) Grants(ctx context.Context, resource *v2.Resource, pToken 
 		return nil, "", nil, err
 	}
 
-	return licenseGrants, "", nil, nil
+	organizationRoleGrants, err := o.organizationRoleGrants(ctx, resource)
+	if err != nil {
+		return nil, "", nil, err
+	}
+
+	grants := append(licenseGrants, organizationRoleGrants...)
+
+	return grants, "", nil, nil
 }
 
 func (o *userBuilder) licenseGrants(ctx context.Context, resource *v2.Resource) ([]*v2.Grant, error) {
@@ -132,6 +150,21 @@ func (o *userBuilder) licenseGrants(ctx context.Context, resource *v2.Resource) 
 	}
 
 	grant := grant.NewGrant(resource, user.License, resource.Id)
+
+	return []*v2.Grant{grant}, nil
+}
+
+func (o *userBuilder) organizationRoleGrants(ctx context.Context, resource *v2.Resource) ([]*v2.Grant, error) {
+	user, _, err := o.client.GetOrganizationMember(ctx, o.organizationId, resource.Id.Resource)
+	if err != nil {
+		return nil, wrapError(err, "failed to get user")
+	}
+
+	if !contains(organizationRoles, user.Role) {
+		return nil, wrapError(nil, "user does not have a valid role")
+	}
+
+	grant := grant.NewGrant(resource, user.Role, resource.Id)
 
 	return []*v2.Grant{grant}, nil
 }
