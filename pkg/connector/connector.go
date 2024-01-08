@@ -12,7 +12,7 @@ import (
 )
 
 type Miro struct {
-	OrgId string
+	OrganizationId string
 
 	Client *miro.Client
 }
@@ -20,7 +20,7 @@ type Miro struct {
 // ResourceSyncers returns a ResourceSyncer for each resource type that should be synced from the upstream service.
 func (d *Miro) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncer {
 	return []connectorbuilder.ResourceSyncer{
-		newUserBuilder(),
+		newUserBuilder(d.Client, d.OrganizationId),
 	}
 }
 
@@ -63,7 +63,7 @@ func New(ctx context.Context, accessToken string) (*Miro, error) {
 	}
 
 	return &Miro{
-		Client: client,
-		OrgId:  context.Organization.Id,
+		Client:         client,
+		OrganizationId: context.Organization.Id,
 	}, nil
 }

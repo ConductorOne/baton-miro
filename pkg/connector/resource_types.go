@@ -8,5 +8,6 @@ import (
 var userResourceType = &v2.ResourceType{
 	Id:          "user",
 	DisplayName: "User",
+	Description: "User of Miro organization",
 	Traits:      []v2.ResourceType_Trait{v2.ResourceType_TRAIT_USER},
 }
