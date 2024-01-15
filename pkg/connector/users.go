@@ -68,9 +68,6 @@ func (o *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId,
 		return nil, "", nil, wrapError(err, "failed to get users")
 	}
 
-	fmt.Printf("response: %+v\n", o)
-	fmt.Printf("response: %+v\n", response)
-
 	var resources []*v2.Resource
 	for _, user := range response.Data {
 		resource, err := userResource(ctx, &user)

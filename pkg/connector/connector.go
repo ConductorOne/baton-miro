@@ -21,6 +21,7 @@ type Miro struct {
 func (d *Miro) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncer {
 	return []connectorbuilder.ResourceSyncer{
 		newUserBuilder(d.Client, d.OrganizationId),
+		newTeamBuilder(d.Client, d.OrganizationId),
 	}
 }
 
