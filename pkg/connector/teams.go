@@ -11,6 +11,8 @@ import (
 	ent "github.com/conductorone/baton-sdk/pkg/types/entitlement"
 	grant "github.com/conductorone/baton-sdk/pkg/types/grant"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	"go.uber.org/zap"
 )
 
 type teamBuilder struct {
@@ -153,4 +155,48 @@ func (o *teamBuilder) Grants(ctx context.Context, resource *v2.Resource, paginat
 	}
 
 	return grants, nextCursor, nil, nil
+}
+
+func (o *teamBuilder) Grant(ctx context.Context, principial *v2.Resource, entitlement *v2.Entitlement) (annotations.Annotations, error) {
+	l := ctxzap.Extract(ctx)
+
+	if principial.Id.ResourceType != userResourceType.Id {
+		err := fmt.Errorf("baton-miro: only users can be invated to team")
+
+		l.Warn(
+			err.Error(),
+			zap.String("principal_id", principial.Id.Resource),
+			zap.String("principal_type", principial.Id.ResourceType),
+		)
+	}
+
+	role := entitlement.Id
+	if !contains(teamRoles, role) {
+		return nil, wrapError(nil, "user does not have a valid team role")
+	}
+
+	user, _, err := o.client.GetOrganizationMember(ctx, o.organizationId, principial.Id.Resource)
+	if err != nil {
+		err := wrapError(err, "failed to get user")
+
+		l.Error(
+			err.Error(),
+			zap.String("userId", principial.Id.Resource),
+			zap.String("teamId", entitlement.Resource.Id.Resource),
+		)
+	}
+
+	_, _, err = o.client.InviteTeamMember(ctx, o.organizationId, entitlement.Resource.Id.Resource, user.Email, role)
+	if err != nil {
+		err := wrapError(err, "failed to invite user to team")
+
+		l.Error(
+			err.Error(),
+			zap.String("userId", principial.Id.Resource),
+			zap.String("teamId", entitlement.Resource.Id.Resource),
+			zap.String("role", role),
+		)
+	}
+
+	return nil, nil
 }

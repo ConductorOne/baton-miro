@@ -28,6 +28,15 @@ type (
 		Cursor string       `json:"cursor"`
 		Data   []TeamMember `json:"data"`
 	}
+	InviteTeamMemberBody struct {
+		Email string `json:"email"`
+		Role  string `json:"role"`
+	}
+	InviteTeamMemberResponse struct {
+		TeamId string `json:"teamId"`
+		Role   string `json:"role"`
+		UserId string `json:"id"`
+	}
 )
 
 func (c *Client) GetTeams(ctx context.Context, organizationId, cursor string, limit int32, query ...queryFunction) (*GetTeamsResponse, *http.Response, error) {
@@ -70,19 +79,22 @@ func (c *Client) GetTeamMembers(ctx context.Context, organizationId, teamId, cur
 	return teamMembers, resp, nil
 }
 
-func (c *Client) GetTeam(ctx context.Context, organizationId, teamId string) (*Team, *http.Response, error) {
-	url := fmt.Sprintf("%s/v2/orgs/%s/teams/%s", c.baseUrl, organizationId, teamId)
+func (c *Client) InviteTeamMember(ctx context.Context, organizationId, teamId, email, role string) (*InviteTeamMemberResponse, *http.Response, error) {
+	url := fmt.Sprintf("%s/v2/orgs/%s/teams/%s/member", c.baseUrl, organizationId, teamId)
 
-	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodGet, url)
+	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodPost, url, InviteTeamMemberBody{
+		Email: email,
+		Role:  role,
+	})
 	if err != nil {
 		return nil, nil, err
 	}
 
-	team := new(Team)
-	resp, err := c.do(req, team)
+	inviteTeamMemberResponse := new(InviteTeamMemberResponse)
+	resp, err := c.do(req, inviteTeamMemberResponse)
 	if err != nil {
 		return nil, resp, err
 	}
 
-	return team, resp, nil
+	return inviteTeamMemberResponse, resp, nil
 }
