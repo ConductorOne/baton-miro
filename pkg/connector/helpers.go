@@ -2,6 +2,7 @@ package connector
 
 import (
 	"fmt"
+	"time"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
@@ -47,3 +48,11 @@ func contains(s []string, str string) bool {
 }
 
 const resourcePageSize = 50
+
+func parseTime(i string) (*time.Time, error) {
+	t, err := time.Parse(time.RFC3339, i)
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
+}

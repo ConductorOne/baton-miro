@@ -41,10 +41,16 @@ func userResource(ctx context.Context, user *miro.User) (*v2.Resource, error) {
 		status = v2.UserTrait_Status_STATUS_DISABLED
 	}
 
+	lastLogin, err := parseTime(user.LastActivityAt)
+	if err != nil {
+		return nil, wrapError(err, "failed to parse last login time")
+	}
+
 	userTraits := []rs.UserTraitOption{
 		rs.WithUserProfile(profile),
 		rs.WithUserLogin(user.Email),
 		rs.WithStatus(status),
+		rs.WithLastLogin(*lastLogin),
 	}
 
 	resource, err := rs.NewUserResource(user.Name, userResourceType, user.Id, userTraits)
