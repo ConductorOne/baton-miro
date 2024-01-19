@@ -200,3 +200,33 @@ func (o *teamBuilder) Grant(ctx context.Context, principial *v2.Resource, entitl
 
 	return nil, nil
 }
+
+func (g *teamBuilder) Revoke(ctx context.Context, grant *v2.Grant) (annotations.Annotations, error) {
+	l := ctxzap.Extract(ctx)
+
+	entitlement := grant.Entitlement
+	principal := grant.Principal
+
+	if principal.Id.ResourceType != userResourceType.Id {
+		err := fmt.Errorf("baton-miro: only users can be revoked from team")
+
+		l.Warn(
+			err.Error(),
+			zap.String("principal_id", principal.Id.Resource),
+			zap.String("principal_type", principal.Id.ResourceType),
+		)
+	}
+
+	_, err := g.client.RemoveTeamMember(ctx, g.organizationId, entitlement.Resource.Id.Resource, principal.Id.Resource)
+	if err != nil {
+		err := wrapError(err, "failed to remove user from team")
+
+		l.Error(
+			err.Error(),
+			zap.String("userId", principal.Id.Resource),
+			zap.String("teamId", entitlement.Resource.Id.Resource),
+		)
+	}
+
+	return nil, nil
+}

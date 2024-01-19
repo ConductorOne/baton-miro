@@ -98,3 +98,19 @@ func (c *Client) InviteTeamMember(ctx context.Context, organizationId, teamId, e
 
 	return inviteTeamMemberResponse, resp, nil
 }
+
+func (c *Client) RemoveTeamMember(ctx context.Context, organizationId, teamId, userId string) (*http.Response, error) {
+	url := fmt.Sprintf("%s/v2/orgs/%s/teams/%s/member/%s", c.baseUrl, organizationId, teamId, userId)
+
+	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodDelete, url)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.do(req)
+	if err != nil {
+		return resp, err
+	}
+
+	return resp, nil
+}
