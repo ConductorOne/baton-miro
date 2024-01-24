@@ -45,7 +45,9 @@ func userResource(ctx context.Context, user *miro.User) (*v2.Resource, error) {
 		rs.WithUserProfile(profile),
 		rs.WithUserLogin(user.Email),
 		rs.WithStatus(status),
-		rs.WithLastLogin(*lastLogin),
+	}
+	if lastLogin != nil {
+		userTraits = append(userTraits, rs.WithLastLogin(*lastLogin))
 	}
 
 	resource, err := rs.NewUserResource(user.Email, userResourceType, user.Id, userTraits)

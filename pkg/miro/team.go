@@ -47,7 +47,9 @@ func (c *Client) GetTeams(ctx context.Context, organizationId, cursor string, li
 		return nil, nil, err
 	}
 
-	query = append(query, WithCursor(cursor), WithLimit(limit))
+	if cursor != "" {
+		query = append(query, WithCursor(cursor))
+	}
 	addQueryParams(req, query...)
 
 	teams := new(GetTeamsResponse)
@@ -60,14 +62,17 @@ func (c *Client) GetTeams(ctx context.Context, organizationId, cursor string, li
 }
 
 func (c *Client) GetTeamMembers(ctx context.Context, organizationId, teamId, cursor string, limit int32, query ...queryFunction) (*GetTeamMembersResponse, *http.Response, error) {
-	url := fmt.Sprintf("%s/v2/orgs/%s/teams/%s/member", c.baseUrl, organizationId, teamId)
+	url := fmt.Sprintf("%s/v2/orgs/%s/teams/%s/members", c.baseUrl, organizationId, teamId)
 
 	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodGet, url)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	query = append(query, WithCursor(cursor), WithLimit(limit))
+	query = append(query, WithLimit(limit))
+	if cursor != "" {
+		query = append(query, WithCursor(cursor))
+	}
 	addQueryParams(req, query...)
 
 	teamMembers := new(GetTeamMembersResponse)
@@ -80,7 +85,7 @@ func (c *Client) GetTeamMembers(ctx context.Context, organizationId, teamId, cur
 }
 
 func (c *Client) InviteTeamMember(ctx context.Context, organizationId, teamId, email, role string) (*InviteTeamMemberResponse, *http.Response, error) {
-	url := fmt.Sprintf("%s/v2/orgs/%s/teams/%s/member", c.baseUrl, organizationId, teamId)
+	url := fmt.Sprintf("%s/v2/orgs/%s/teams/%s/members", c.baseUrl, organizationId, teamId)
 
 	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodPost, url, InviteTeamMemberBody{
 		Email: email,
@@ -100,7 +105,7 @@ func (c *Client) InviteTeamMember(ctx context.Context, organizationId, teamId, e
 }
 
 func (c *Client) RemoveTeamMember(ctx context.Context, organizationId, teamId, userId string) (*http.Response, error) {
-	url := fmt.Sprintf("%s/v2/orgs/%s/teams/%s/member/%s", c.baseUrl, organizationId, teamId, userId)
+	url := fmt.Sprintf("%s/v2/orgs/%s/teams/%s/members/%s", c.baseUrl, organizationId, teamId, userId)
 
 	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodDelete, url)
 	if err != nil {

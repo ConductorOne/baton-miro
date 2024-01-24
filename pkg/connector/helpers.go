@@ -50,6 +50,10 @@ func contains(s []string, str string) bool {
 const resourcePageSize = 50
 
 func parseTime(i string) (*time.Time, error) {
+	if i == "" {
+		return nil, nil
+	}
+
 	t, err := time.Parse(time.RFC3339, i)
 	if err != nil {
 		return nil, err

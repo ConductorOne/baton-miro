@@ -170,7 +170,7 @@ func (o *teamBuilder) Grant(ctx context.Context, principial *v2.Resource, entitl
 		)
 	}
 
-	role := entitlement.Id
+	role := entitlement.Slug
 	if !contains(teamRoles, role) {
 		return nil, wrapError(nil, "user does not have a valid team role")
 	}
