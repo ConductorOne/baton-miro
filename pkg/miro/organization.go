@@ -21,14 +21,17 @@ type (
 )
 
 func (c *Client) GetOrganizationMembers(ctx context.Context, organizationId, cursor string, limit int32, query ...queryFunction) (*GetOrganizationMembersResponse, *http.Response, error) {
-	url := fmt.Sprintf("%s/v1/orgs/%s/members", c.baseUrl, organizationId)
+	url := fmt.Sprintf("%s/v2/orgs/%s/members", c.baseUrl, organizationId)
 
 	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodGet, url)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	query = append(query, WithCursor(cursor), WithLimit(limit))
+	query = append(query, WithLimit(limit))
+	if cursor != "" {
+		query = append(query, WithCursor(cursor))
+	}
 	addQueryParams(req, query...)
 
 	users := new(GetOrganizationMembersResponse)
@@ -41,7 +44,7 @@ func (c *Client) GetOrganizationMembers(ctx context.Context, organizationId, cur
 }
 
 func (c *Client) GetOrganizationMember(ctx context.Context, organizationId, userId string) (*User, *http.Response, error) {
-	url := fmt.Sprintf("%s/v1/orgs/%s/members/%s", c.baseUrl, organizationId, userId)
+	url := fmt.Sprintf("%s/v2/orgs/%s/members/%s", c.baseUrl, organizationId, userId)
 
 	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodGet, url)
 	if err != nil {

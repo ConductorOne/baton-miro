@@ -7,7 +7,6 @@ import (
 	"github.com/conductorone/baton-miro/pkg/miro"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
-	"github.com/conductorone/baton-sdk/pkg/helpers"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	ent "github.com/conductorone/baton-sdk/pkg/types/entitlement"
 	grant "github.com/conductorone/baton-sdk/pkg/types/grant"
@@ -25,13 +24,9 @@ func (o *userBuilder) ResourceType(ctx context.Context) *v2.ResourceType {
 }
 
 func userResource(ctx context.Context, user *miro.User) (*v2.Resource, error) {
-	firstName, lastName := helpers.SplitFullName(user.Name)
-
 	profile := map[string]interface{}{
-		"first_name": firstName,
-		"last_name":  lastName,
-		"email":      user.Email,
-		"login":      user.Email,
+		"email": user.Email,
+		"login": user.Email,
 	}
 
 	var status v2.UserTrait_Status_Status
@@ -53,7 +48,7 @@ func userResource(ctx context.Context, user *miro.User) (*v2.Resource, error) {
 		rs.WithLastLogin(*lastLogin),
 	}
 
-	resource, err := rs.NewUserResource(user.Name, userResourceType, user.Id, userTraits)
+	resource, err := rs.NewUserResource(user.Email, userResourceType, user.Id, userTraits)
 	if err != nil {
 		return nil, err
 	}
