@@ -12,6 +12,15 @@ Connector requires bearer access token that is used throughout the communication
 
 After you have obtained access token, you can use it with connector. You can do this by setting `BATON_MIRO_ACCESS_TOKEN` or by passing `--miro-access-token`.
 
+## Required permissions
+
+- identity:read
+- team:read
+- team:write (could be just read if provisioning is not used)
+- organizations:read
+- organizations:team:read
+- organizations:team:write (could be just read if provisioning is not used)
+
 # Getting Started
 
 ## brew
