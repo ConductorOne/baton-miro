@@ -77,6 +77,7 @@ func (g *teamBuilder) List(ctx context.Context, _ *v2.ResourceId, pagination *pa
 
 	var resources []*v2.Resource
 	for _, team := range response.Data {
+		team := team
 		resource, err := teamResource(ctx, &team)
 		if err != nil {
 			return nil, "", nil, wrapError(err, "failed to create team resource")

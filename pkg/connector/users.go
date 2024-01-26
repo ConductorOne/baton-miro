@@ -73,6 +73,7 @@ func (o *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId,
 
 	var resources []*v2.Resource
 	for _, user := range response.Data {
+		user := user
 		resource, err := userResource(ctx, &user)
 		if err != nil {
 			return nil, "", nil, wrapError(err, "failed to create user resource")
@@ -124,7 +125,7 @@ func (o *userBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ *
 
 // Grants always returns an empty slice for users since they don't have any entitlements.
 func (o *userBuilder) Grants(ctx context.Context, resource *v2.Resource, pToken *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	licenseGrants, err := o.licenseGrants(ctx, resource)
+	grants, err := o.licenseGrants(ctx, resource)
 	if err != nil {
 		return nil, "", nil, err
 	}
@@ -134,7 +135,7 @@ func (o *userBuilder) Grants(ctx context.Context, resource *v2.Resource, pToken 
 		return nil, "", nil, err
 	}
 
-	grants := append(licenseGrants, organizationRoleGrants...)
+	grants = append(grants, organizationRoleGrants...)
 
 	return grants, "", nil, nil
 }

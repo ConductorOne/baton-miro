@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-const BASE_URL = "https://api.miro.com"
+const BaseUrl = "https://api.miro.com"
 
 type Client struct {
 	httpClient  *http.Client
@@ -20,7 +20,7 @@ func New(accessToken string, httpClient *http.Client) *Client {
 	return &Client{
 		httpClient:  httpClient,
 		accessToken: accessToken,
-		baseUrl:     BASE_URL,
+		baseUrl:     BaseUrl,
 	}
 }
 
