@@ -54,8 +54,8 @@ func (c *Client) do(req *http.Request, response ...interface{}) (*http.Response,
 		return nil, err
 	}
 
-	if resp.StatusCode < 200 && resp.StatusCode < 300 {
-		return nil, err // TODO: newMiroError(resp.StatusCode, err)
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return resp, err
 	}
 
 	if response != nil {
