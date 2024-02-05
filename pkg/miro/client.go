@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 )
 
 const BaseUrl = "https://api.miro.com"
@@ -24,7 +25,7 @@ func New(accessToken string, httpClient *http.Client) *Client {
 	}
 }
 
-func (c *Client) newRequestWithDefaultHeaders(ctx context.Context, method, url string, body ...interface{}) (*http.Request, error) {
+func (c *Client) newRequestWithDefaultHeaders(ctx context.Context, method string, url *url.URL, body ...interface{}) (*http.Request, error) {
 	var buffer io.ReadWriter
 	if body != nil {
 		buffer = new(bytes.Buffer)
@@ -35,7 +36,7 @@ func (c *Client) newRequestWithDefaultHeaders(ctx context.Context, method, url s
 		}
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, url, buffer)
+	req, err := http.NewRequestWithContext(ctx, method, url.String(), buffer)
 	if err != nil {
 		return nil, err
 	}

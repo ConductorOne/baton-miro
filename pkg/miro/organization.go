@@ -2,8 +2,8 @@ package miro
 
 import (
 	"context"
-	"fmt"
 	"net/http"
+	"net/url"
 )
 
 type (
@@ -21,9 +21,17 @@ type (
 )
 
 func (c *Client) GetOrganizationMembers(ctx context.Context, organizationId, cursor string, limit int32, query ...queryFunction) (*GetOrganizationMembersResponse, *http.Response, error) {
-	url := fmt.Sprintf("%s/v2/orgs/%s/members", c.baseUrl, organizationId)
+	stringUrl, err := url.JoinPath(c.baseUrl, "v2/orgs", organizationId, "members")
+	if err != nil {
+		return nil, nil, err
+	}
 
-	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodGet, url)
+	u, err := url.Parse(stringUrl)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodGet, u)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -44,9 +52,17 @@ func (c *Client) GetOrganizationMembers(ctx context.Context, organizationId, cur
 }
 
 func (c *Client) GetOrganizationMember(ctx context.Context, organizationId, userId string) (*User, *http.Response, error) {
-	url := fmt.Sprintf("%s/v2/orgs/%s/members/%s", c.baseUrl, organizationId, userId)
+	stringValue, err := url.JoinPath(c.baseUrl, "v2/orgs", organizationId, "members", userId)
+	if err != nil {
+		return nil, nil, err
+	}
 
-	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodGet, url)
+	u, err := url.Parse(stringValue)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodGet, u)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -2,8 +2,8 @@ package miro
 
 import (
 	"context"
-	"fmt"
 	"net/http"
+	"net/url"
 )
 
 type Context struct {
@@ -15,9 +15,17 @@ type Context struct {
 }
 
 func (c *Client) GetContext(ctx context.Context) (*Context, *http.Response, error) {
-	url := fmt.Sprint(c.baseUrl, "/v1/oauth-token")
+	stringUrl, err := url.JoinPath(c.baseUrl, "/v1/oauth-token")
+	if err != nil {
+		return nil, nil, err
+	}
 
-	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodGet, url)
+	u, err := url.Parse(stringUrl)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodGet, u)
 	if err != nil {
 		return nil, nil, err
 	}

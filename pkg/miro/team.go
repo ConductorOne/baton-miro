@@ -2,8 +2,8 @@ package miro
 
 import (
 	"context"
-	"fmt"
 	"net/http"
+	"net/url"
 )
 
 type (
@@ -40,9 +40,17 @@ type (
 )
 
 func (c *Client) GetTeams(ctx context.Context, organizationId, cursor string, limit int32, query ...queryFunction) (*GetTeamsResponse, *http.Response, error) {
-	url := fmt.Sprintf("%s/v2/orgs/%s/teams", c.baseUrl, organizationId)
+	stringUrl, err := url.JoinPath(c.baseUrl, "v2/orgs", organizationId, "teams")
+	if err != nil {
+		return nil, nil, err
+	}
 
-	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodGet, url)
+	u, err := url.Parse(stringUrl)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodGet, u)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -62,9 +70,17 @@ func (c *Client) GetTeams(ctx context.Context, organizationId, cursor string, li
 }
 
 func (c *Client) GetTeamMembers(ctx context.Context, organizationId, teamId, cursor string, limit int32, query ...queryFunction) (*GetTeamMembersResponse, *http.Response, error) {
-	url := fmt.Sprintf("%s/v2/orgs/%s/teams/%s/members", c.baseUrl, organizationId, teamId)
+	stringUrl, err := url.JoinPath(c.baseUrl, "v2/orgs", organizationId, "teams", teamId, "members")
+	if err != nil {
+		return nil, nil, err
+	}
 
-	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodGet, url)
+	u, err := url.Parse(stringUrl)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodGet, u)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -85,9 +101,17 @@ func (c *Client) GetTeamMembers(ctx context.Context, organizationId, teamId, cur
 }
 
 func (c *Client) InviteTeamMember(ctx context.Context, organizationId, teamId, email, role string) (*InviteTeamMemberResponse, *http.Response, error) {
-	url := fmt.Sprintf("%s/v2/orgs/%s/teams/%s/members", c.baseUrl, organizationId, teamId)
+	stringUrl, err := url.JoinPath(c.baseUrl, "v2/orgs", organizationId, "teams", teamId, "members")
+	if err != nil {
+		return nil, nil, err
+	}
 
-	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodPost, url, InviteTeamMemberBody{
+	u, err := url.Parse(stringUrl)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodPost, u, InviteTeamMemberBody{
 		Email: email,
 		Role:  role,
 	})
@@ -105,9 +129,17 @@ func (c *Client) InviteTeamMember(ctx context.Context, organizationId, teamId, e
 }
 
 func (c *Client) RemoveTeamMember(ctx context.Context, organizationId, teamId, userId string) (*http.Response, error) {
-	url := fmt.Sprintf("%s/v2/orgs/%s/teams/%s/members/%s", c.baseUrl, organizationId, teamId, userId)
+	stringUrl, err := url.JoinPath(c.baseUrl, "v2/orgs", organizationId, "teams", teamId, "members", userId)
+	if err != nil {
+		return nil, err
+	}
 
-	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodDelete, url)
+	u, err := url.Parse(stringUrl)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodDelete, u)
 	if err != nil {
 		return nil, err
 	}
