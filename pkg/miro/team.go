@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+
+	"github.com/conductorone/baton-sdk/pkg/uhttp"
 )
 
 type (
@@ -50,7 +52,7 @@ func (c *Client) GetTeams(ctx context.Context, organizationId, cursor string, li
 		return nil, nil, err
 	}
 
-	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodGet, u)
+	req, err := c.NewRequest(ctx, http.MethodGet, u)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -61,7 +63,7 @@ func (c *Client) GetTeams(ctx context.Context, organizationId, cursor string, li
 	addQueryParams(req, query...)
 
 	teams := new(GetTeamsResponse)
-	resp, err := c.do(req, teams)
+	resp, err := c.Do(req, uhttp.WithJSONResponse(teams))
 	if err != nil {
 		return nil, resp, err
 	}
@@ -80,7 +82,7 @@ func (c *Client) GetTeamMembers(ctx context.Context, organizationId, teamId, cur
 		return nil, nil, err
 	}
 
-	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodGet, u)
+	req, err := c.NewRequest(ctx, http.MethodGet, u)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -92,7 +94,7 @@ func (c *Client) GetTeamMembers(ctx context.Context, organizationId, teamId, cur
 	addQueryParams(req, query...)
 
 	teamMembers := new(GetTeamMembersResponse)
-	resp, err := c.do(req, teamMembers)
+	resp, err := c.Do(req, uhttp.WithJSONResponse(teamMembers))
 	if err != nil {
 		return nil, resp, err
 	}
@@ -111,16 +113,16 @@ func (c *Client) InviteTeamMember(ctx context.Context, organizationId, teamId, e
 		return nil, nil, err
 	}
 
-	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodPost, u, InviteTeamMemberBody{
+	req, err := c.NewRequest(ctx, http.MethodPost, u, uhttp.WithJSONBody(InviteTeamMemberBody{
 		Email: email,
 		Role:  role,
-	})
+	}))
 	if err != nil {
 		return nil, nil, err
 	}
 
 	inviteTeamMemberResponse := new(InviteTeamMemberResponse)
-	resp, err := c.do(req, inviteTeamMemberResponse)
+	resp, err := c.Do(req, uhttp.WithJSONResponse(inviteTeamMemberResponse))
 	if err != nil {
 		return nil, resp, err
 	}
@@ -139,12 +141,12 @@ func (c *Client) RemoveTeamMember(ctx context.Context, organizationId, teamId, u
 		return nil, err
 	}
 
-	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodDelete, u)
+	req, err := c.NewRequest(ctx, http.MethodDelete, u)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := c.do(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return resp, err
 	}

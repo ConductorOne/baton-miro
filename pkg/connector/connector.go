@@ -47,11 +47,7 @@ func (d *Miro) Validate(ctx context.Context) (annotations.Annotations, error) {
 
 // New returns a new instance of the connector.
 func New(ctx context.Context, accessToken string) (*Miro, error) {
-	httpClient, err := uhttp.NewClient(
-		ctx,
-		uhttp.WithLogger(true, nil),
-		uhttp.WithUserAgent("baton-miro"),
-	)
+	httpClient, err := uhttp.NewBearerAuth(accessToken).GetClient(ctx)
 	if err != nil {
 		return nil, err
 	}

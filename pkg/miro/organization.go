@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+
+	"github.com/conductorone/baton-sdk/pkg/uhttp"
 )
 
 type (
@@ -31,7 +33,7 @@ func (c *Client) GetOrganizationMembers(ctx context.Context, organizationId, cur
 		return nil, nil, err
 	}
 
-	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodGet, u)
+	req, err := c.NewRequest(ctx, http.MethodGet, u)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -43,7 +45,7 @@ func (c *Client) GetOrganizationMembers(ctx context.Context, organizationId, cur
 	addQueryParams(req, query...)
 
 	users := new(GetOrganizationMembersResponse)
-	resp, err := c.do(req, users)
+	resp, err := c.Do(req, uhttp.WithJSONResponse(users))
 	if err != nil {
 		return nil, resp, err
 	}
@@ -62,13 +64,13 @@ func (c *Client) GetOrganizationMember(ctx context.Context, organizationId, user
 		return nil, nil, err
 	}
 
-	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodGet, u)
+	req, err := c.NewRequest(ctx, http.MethodGet, u)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	user := new(User)
-	resp, err := c.do(req, user)
+	resp, err := c.Do(req, uhttp.WithJSONResponse(user))
 	if err != nil {
 		return nil, resp, err
 	}
