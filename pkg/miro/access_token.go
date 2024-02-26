@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+
+	"github.com/conductorone/baton-sdk/pkg/uhttp"
 )
 
 type Context struct {
@@ -25,13 +27,13 @@ func (c *Client) GetContext(ctx context.Context) (*Context, *http.Response, erro
 		return nil, nil, err
 	}
 
-	req, err := c.newRequestWithDefaultHeaders(ctx, http.MethodGet, u)
+	req, err := c.NewRequest(ctx, http.MethodGet, u)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	context := new(Context)
-	resp, err := c.do(req, context)
+	resp, err := c.Do(req, uhttp.WithJSONResponse(context))
 	if err != nil {
 		return nil, resp, err
 	}
