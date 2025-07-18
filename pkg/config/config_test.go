@@ -26,6 +26,20 @@ func TestValidateConfig(t *testing.T) {
 			config:  &Miro{},
 			wantErr: true,
 		},
+		{
+			name: "invalid config - missing access token",
+			config: &Miro{
+				AccessToken: "test-access-token",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid config - missing access token",
+			config: &Miro{
+				AccessToken: "test-access-token",
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
