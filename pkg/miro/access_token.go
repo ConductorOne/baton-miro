@@ -4,8 +4,6 @@ import (
 	"context"
 	"net/http"
 	"net/url"
-
-	"github.com/conductorone/baton-sdk/pkg/uhttp"
 )
 
 type Context struct {
@@ -16,8 +14,12 @@ type Context struct {
 	Organization *Organization `json:"organization"`
 }
 
+const (
+	accessTokenUrl = "/v1/oauth-token" //nolint:gosec // This is a URL path, not a hardcoded credential.
+)
+
 func (c *Client) GetContext(ctx context.Context) (*Context, *http.Response, error) {
-	stringUrl, err := url.JoinPath(c.baseUrl, "/v1/oauth-token")
+	stringUrl, err := url.JoinPath(c.baseUrl, accessTokenUrl)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -27,16 +29,11 @@ func (c *Client) GetContext(ctx context.Context) (*Context, *http.Response, erro
 		return nil, nil, err
 	}
 
-	req, err := c.NewRequest(ctx, http.MethodGet, u)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	context := new(Context)
-	resp, err := c.Do(req, uhttp.WithJSONResponse(context))
+	accessToken := new(Context)
+	resp, err := c.doRequest(ctx, u, http.MethodGet, accessToken, nil)
 	if err != nil {
 		return nil, resp, err
 	}
 
-	return context, resp, nil
+	return accessToken, resp, nil
 }

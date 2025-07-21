@@ -157,7 +157,6 @@ func (o *teamBuilder) Grants(ctx context.Context, resource *v2.Resource, paginat
 
 	return grants, nextCursor, nil, nil
 }
-
 func (o *teamBuilder) Grant(ctx context.Context, principial *v2.Resource, entitlement *v2.Entitlement) (annotations.Annotations, error) {
 	l := ctxzap.Extract(ctx)
 
@@ -201,7 +200,6 @@ func (o *teamBuilder) Grant(ctx context.Context, principial *v2.Resource, entitl
 
 	return nil, nil
 }
-
 func (g *teamBuilder) Revoke(ctx context.Context, grant *v2.Grant) (annotations.Annotations, error) {
 	l := ctxzap.Extract(ctx)
 

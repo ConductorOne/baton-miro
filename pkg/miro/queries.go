@@ -2,7 +2,7 @@ package miro
 
 import (
 	"fmt"
-	"net/http"
+	"net/url"
 )
 
 type (
@@ -31,13 +31,11 @@ func WithCursor(cursor string) queryFunction {
 	}
 }
 
-func addQueryParams(req *http.Request, queries ...queryFunction) *http.Request {
-	q := req.URL.Query()
+func addQueryParams(u *url.URL, queries ...queryFunction) {
+	q := u.Query()
 	for _, query := range queries {
 		param := query()
 		q.Add(param.name, param.value)
 	}
-	req.URL.RawQuery = q.Encode()
-
-	return req
+	u.RawQuery = q.Encode()
 }

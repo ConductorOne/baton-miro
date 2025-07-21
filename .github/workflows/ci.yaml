@@ -11,7 +11,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Run linters
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v8
         with:
           version: latest
           args: --timeout=3m
@@ -21,6 +21,8 @@ jobs:
         go-version: [1.23.x]
         platform: [ubuntu-latest]
     runs-on: ${{ matrix.platform }}
+    env:
+      BATON_MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
     steps:
       - name: Install Go
         if: success()
@@ -36,3 +38,36 @@ jobs:
         uses: guyarb/golang-test-annotations@v0.6.0
         with:
           test-results: test.json
+
+  integration-test:
+    runs-on: ubuntu-latest
+    env:
+      BATON_LOG_LEVEL: debug
+      BATON_MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.23.x
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Build baton-miro
+        run: go build -o baton-miro ./cmd/baton-miro
+      - name: Validate capabilities
+        run: |
+          ./baton-miro \
+            --miro-access-token "$BATON_MIRO_ACCESS_TOKEN" \
+          capabilities
+      - name: Run basic sync test
+        run: |
+          ./baton-miro \
+            --miro-access-token "$BATON_MIRO_ACCESS_TOKEN" \
+            --log-level debug \
+            --file sync.c1z
+
+          if [ ! -f "sync.c1z" ]; then
+            echo "Error: File sync.c1z was not generated."
+            exit 1
+          fi
+      - name: List Baton Commands
+        run: ./baton-miro --help

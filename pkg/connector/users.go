@@ -7,6 +7,7 @@ import (
 	"github.com/conductorone/baton-miro/pkg/miro"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
+	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	ent "github.com/conductorone/baton-sdk/pkg/types/entitlement"
 	grant "github.com/conductorone/baton-sdk/pkg/types/grant"
@@ -138,6 +139,53 @@ func (o *userBuilder) Grants(ctx context.Context, resource *v2.Resource, pToken 
 	grants = append(grants, organizationRoleGrants...)
 
 	return grants, "", nil, nil
+}
+
+func (o *userBuilder) CreateAccount(
+	ctx context.Context,
+	accountInfo *v2.AccountInfo,
+	_ *v2.CredentialOptions,
+) (
+	connectorbuilder.CreateAccountResponse,
+	[]*v2.PlaintextData,
+	annotations.Annotations,
+	error,
+) {
+	profile := accountInfo.GetProfile().AsMap()
+	requiredFields := map[string]string{
+		"first_name": "first_name is required",
+		"last_name":  "last_name is required",
+		"email":      "email is required",
+	}
+
+	for field, errMsg := range requiredFields {
+		if val, ok := profile[field].(string); !ok || val == "" {
+			return nil, nil, nil, fmt.Errorf("%s", errMsg)
+		}
+	}
+
+	createUserReq := &miro.CreateUserRequest{
+		Schemas:  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		UserName: profile["email"].(string),
+		Name: miro.RequestName{
+			GivenName:  profile["first_name"].(string),
+			FamilyName: profile["last_name"].(string),
+		},
+	}
+
+	newUser, _, err := o.client.CreateUser(ctx, createUserReq)
+	if err != nil {
+		return nil, nil, nil, wrapError(err, "failed to create miro user")
+	}
+
+	resource, err := userResource(ctx, newUser)
+	if err != nil {
+		return nil, nil, nil, wrapError(err, "failed to create user resource from miro user")
+	}
+
+	return &v2.CreateAccountResponse_SuccessResult{
+		Resource: resource,
+	}, nil, nil, nil
 }
 
 func (o *userBuilder) licenseGrants(ctx context.Context, resource *v2.Resource) ([]*v2.Grant, error) {

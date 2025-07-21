@@ -2,10 +2,8 @@ package miro
 
 import (
 	"context"
+	"fmt"
 	"net/http"
-	"net/url"
-
-	"github.com/conductorone/baton-sdk/pkg/uhttp"
 )
 
 type (
@@ -41,18 +39,13 @@ type (
 	}
 )
 
-func (c *Client) GetTeams(ctx context.Context, organizationId, cursor string, limit int32, query ...queryFunction) (*GetTeamsResponse, *http.Response, error) {
-	stringUrl, err := url.JoinPath(c.baseUrl, "v2/orgs", organizationId, "teams")
-	if err != nil {
-		return nil, nil, err
-	}
+const (
+	TeamsUrl       = "v2/orgs/%s/teams"
+	TeamMembersUrl = "v2/orgs/%s/teams/%s/members"
+)
 
-	u, err := url.Parse(stringUrl)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req, err := c.NewRequest(ctx, http.MethodGet, u)
+func (c *Client) GetTeams(ctx context.Context, organizationId string, cursor string, limit int32, query ...queryFunction) (*GetTeamsResponse, *http.Response, error) {
+	teamsUrl, err := buildResourceURL(c.baseUrl, fmt.Sprintf(TeamsUrl, organizationId))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -60,29 +53,19 @@ func (c *Client) GetTeams(ctx context.Context, organizationId, cursor string, li
 	if cursor != "" {
 		query = append(query, WithCursor(cursor))
 	}
-	addQueryParams(req, query...)
+	addQueryParams(teamsUrl, query...)
 
-	teams := new(GetTeamsResponse)
-	resp, err := c.Do(req, uhttp.WithJSONResponse(teams))
+	var teams GetTeamsResponse
+	resp, err := c.doRequest(ctx, teamsUrl, http.MethodGet, &teams, nil)
 	if err != nil {
 		return nil, resp, err
 	}
 
-	return teams, resp, nil
+	return &teams, resp, nil
 }
 
-func (c *Client) GetTeamMembers(ctx context.Context, organizationId, teamId, cursor string, limit int32, query ...queryFunction) (*GetTeamMembersResponse, *http.Response, error) {
-	stringUrl, err := url.JoinPath(c.baseUrl, "v2/orgs", organizationId, "teams", teamId, "members")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	u, err := url.Parse(stringUrl)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req, err := c.NewRequest(ctx, http.MethodGet, u)
+func (c *Client) GetTeamMembers(ctx context.Context, organizationId string, teamId string, cursor string, limit int32, query ...queryFunction) (*GetTeamMembersResponse, *http.Response, error) {
+	teamMembersUrl, err := buildResourceURL(c.baseUrl, fmt.Sprintf(TeamMembersUrl, organizationId, teamId))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -91,62 +74,44 @@ func (c *Client) GetTeamMembers(ctx context.Context, organizationId, teamId, cur
 	if cursor != "" {
 		query = append(query, WithCursor(cursor))
 	}
-	addQueryParams(req, query...)
+	addQueryParams(teamMembersUrl, query...)
 
-	teamMembers := new(GetTeamMembersResponse)
-	resp, err := c.Do(req, uhttp.WithJSONResponse(teamMembers))
+	var teamMembers GetTeamMembersResponse
+	resp, err := c.doRequest(ctx, teamMembersUrl, http.MethodGet, &teamMembers, nil)
 	if err != nil {
 		return nil, resp, err
 	}
 
-	return teamMembers, resp, nil
+	return &teamMembers, resp, nil
 }
 
-func (c *Client) InviteTeamMember(ctx context.Context, organizationId, teamId, email, role string) (*InviteTeamMemberResponse, *http.Response, error) {
-	stringUrl, err := url.JoinPath(c.baseUrl, "v2/orgs", organizationId, "teams", teamId, "members")
+func (c *Client) InviteTeamMember(ctx context.Context, organizationId string, teamId string, email string, role string) (*InviteTeamMemberResponse, *http.Response, error) {
+	teamMembersUrl, err := buildResourceURL(c.baseUrl, fmt.Sprintf(TeamMembersUrl, organizationId, teamId))
 	if err != nil {
 		return nil, nil, err
 	}
 
-	u, err := url.Parse(stringUrl)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req, err := c.NewRequest(ctx, http.MethodPost, u, uhttp.WithJSONBody(InviteTeamMemberBody{
+	body := InviteTeamMemberBody{
 		Email: email,
 		Role:  role,
-	}))
-	if err != nil {
-		return nil, nil, err
 	}
 
-	inviteTeamMemberResponse := new(InviteTeamMemberResponse)
-	resp, err := c.Do(req, uhttp.WithJSONResponse(inviteTeamMemberResponse))
+	var inviteTeamMemberResponse InviteTeamMemberResponse
+	resp, err := c.doRequest(ctx, teamMembersUrl, http.MethodPost, &inviteTeamMemberResponse, body)
 	if err != nil {
 		return nil, resp, err
 	}
 
-	return inviteTeamMemberResponse, resp, nil
+	return &inviteTeamMemberResponse, resp, nil
 }
 
-func (c *Client) RemoveTeamMember(ctx context.Context, organizationId, teamId, userId string) (*http.Response, error) {
-	stringUrl, err := url.JoinPath(c.baseUrl, "v2/orgs", organizationId, "teams", teamId, "members", userId)
+func (c *Client) RemoveTeamMember(ctx context.Context, organizationId string, teamId string, userId string) (*http.Response, error) {
+	teamMembersUrl, err := buildResourceURL(c.baseUrl, fmt.Sprintf(TeamMembersUrl, organizationId, teamId), userId)
 	if err != nil {
 		return nil, err
 	}
 
-	u, err := url.Parse(stringUrl)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := c.NewRequest(ctx, http.MethodDelete, u)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.Do(req)
+	resp, err := c.doRequest(ctx, teamMembersUrl, http.MethodDelete, nil, nil)
 	if err != nil {
 		return resp, err
 	}

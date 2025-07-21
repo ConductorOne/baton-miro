@@ -1,22 +1,39 @@
+# Miro Connector Setup Guide
+
 While developing the connector, please fill out this form. This information is needed to write docs and to help other users set up the connector.
+
+---
 
 ## Connector capabilities
 
-1. What resources does the connector sync?
+This connector syncs the following resources:
 
-2. Can the connector provision any resources? If so, which ones?
+- Users
+- Teams
+- Roles
+- Licenses
+
+It also supports provisioning for:
+
+- Users
+- Assigning and unassigning users to teams
+
+---
 
 ## Connector credentials
 
-1. What credentials or information are needed to set up the connector? (For example, API key, client ID and secret, domain, etc.)
+1. **What credentials or information are needed to set up the connector?**  
+   This connector requires:  
+   — Miro Access Token
 
-2. For each item in the list above:
+   **Args**:  
+   `--miro-access-token`
 
-   - How does a user create or look up that credential or info? Please include links to (non-gated) documentation, screenshots (of the UI or of gated docs), or a video of the process.
+2. **For each item in the list above:**
 
-   * - Create new user accounts.
-   * - Manage role assignments for users (updating user-role mappings).
+   - **How does a user create or look up that credential or info?**
 
-   - If applicable: Is the list of scopes or permissions different to sync (read) versus provision (read-write)? If so, list the difference here.
+     1. Log in to [Miro](https://miro.com/login/).
+     2. Follow the instructions [here](https://developers.miro.com/docs/try-out-the-rest-api-in-less-than-3-minutes) to create an access token.
 
-   - What level of access or permissions does the user need in order to create the credentials? (For example, must be a super administrator, must have access to the admin console, etc.)
+---

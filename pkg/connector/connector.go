@@ -21,6 +21,7 @@ func (c *Connector) ResourceSyncers(ctx context.Context) []connectorbuilder.Reso
 	return []connectorbuilder.ResourceSyncer{
 		newUserBuilder(c.Client, c.OrganizationId),
 		newTeamBuilder(c.Client, c.OrganizationId),
+		newRoleBuilder(c.Client),
 	}
 }
 
@@ -34,7 +35,41 @@ func (c *Connector) Asset(ctx context.Context, asset *v2.AssetRef) (string, io.R
 func (c *Connector) Metadata(ctx context.Context) (*v2.ConnectorMetadata, error) {
 	return &v2.ConnectorMetadata{
 		DisplayName: "Miro Connector",
-		Description: "Miro connector",
+		Description: "Connector syncs data from Miro, including users, teams and roles",
+		AccountCreationSchema: &v2.ConnectorAccountCreationSchema{
+			FieldMap: map[string]*v2.ConnectorAccountCreationSchema_Field{
+				"first_name": {
+					DisplayName: "First Name",
+					Required:    true,
+					Description: "The first name of the user to create.",
+					Field: &v2.ConnectorAccountCreationSchema_Field_StringField{
+						StringField: &v2.ConnectorAccountCreationSchema_StringField{},
+					},
+					Placeholder: "John",
+					Order:       1,
+				},
+				"last_name": {
+					DisplayName: "Last Name",
+					Required:    true,
+					Description: "The last name of the user to create.",
+					Field: &v2.ConnectorAccountCreationSchema_Field_StringField{
+						StringField: &v2.ConnectorAccountCreationSchema_StringField{},
+					},
+					Placeholder: "Doe",
+					Order:       2,
+				},
+				"email": {
+					DisplayName: "Email",
+					Required:    true,
+					Description: "The email address for the user. It will be used as their login.",
+					Field: &v2.ConnectorAccountCreationSchema_Field_StringField{
+						StringField: &v2.ConnectorAccountCreationSchema_StringField{},
+					},
+					Placeholder: "john.doe@example.com",
+					Order:       3,
+				},
+			},
+		},
 	}, nil
 }
 
@@ -51,7 +86,7 @@ func New(ctx context.Context, accessToken string) (*Connector, error) {
 		return nil, err
 	}
 
-	client := miro.New(accessToken, httpClient)
+	client := miro.New(httpClient)
 
 	context, _, err := client.GetContext(ctx)
 	if err != nil {

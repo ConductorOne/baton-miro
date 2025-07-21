@@ -2,10 +2,8 @@ package miro
 
 import (
 	"context"
+	"fmt"
 	"net/http"
-	"net/url"
-
-	"github.com/conductorone/baton-sdk/pkg/uhttp"
 )
 
 type (
@@ -22,18 +20,12 @@ type (
 	}
 )
 
-func (c *Client) GetOrganizationMembers(ctx context.Context, organizationId, cursor string, limit int32, query ...queryFunction) (*GetOrganizationMembersResponse, *http.Response, error) {
-	stringUrl, err := url.JoinPath(c.baseUrl, "v2/orgs", organizationId, "members")
-	if err != nil {
-		return nil, nil, err
-	}
+const (
+	OrganizationMembersUrl = "v2/orgs/%s/members"
+)
 
-	u, err := url.Parse(stringUrl)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req, err := c.NewRequest(ctx, http.MethodGet, u)
+func (c *Client) GetOrganizationMembers(ctx context.Context, organizationId string, cursor string, limit int32, query ...queryFunction) (*GetOrganizationMembersResponse, *http.Response, error) {
+	u, err := buildResourceURL(c.baseUrl, fmt.Sprintf(OrganizationMembersUrl, organizationId))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -42,38 +34,28 @@ func (c *Client) GetOrganizationMembers(ctx context.Context, organizationId, cur
 	if cursor != "" {
 		query = append(query, WithCursor(cursor))
 	}
-	addQueryParams(req, query...)
+	addQueryParams(u, query...)
 
-	users := new(GetOrganizationMembersResponse)
-	resp, err := c.Do(req, uhttp.WithJSONResponse(users))
+	var users GetOrganizationMembersResponse
+	resp, err := c.doRequest(ctx, u, http.MethodGet, &users, nil)
 	if err != nil {
 		return nil, resp, err
 	}
 
-	return users, resp, nil
+	return &users, resp, nil
 }
 
-func (c *Client) GetOrganizationMember(ctx context.Context, organizationId, userId string) (*User, *http.Response, error) {
-	stringValue, err := url.JoinPath(c.baseUrl, "v2/orgs", organizationId, "members", userId)
+func (c *Client) GetOrganizationMember(ctx context.Context, organizationId string, userId string) (*User, *http.Response, error) {
+	u, err := buildResourceURL(c.baseUrl, fmt.Sprintf(OrganizationMembersUrl, organizationId), userId)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	u, err := url.Parse(stringValue)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req, err := c.NewRequest(ctx, http.MethodGet, u)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	user := new(User)
-	resp, err := c.Do(req, uhttp.WithJSONResponse(user))
+	var user User
+	resp, err := c.doRequest(ctx, u, http.MethodGet, &user, nil)
 	if err != nil {
 		return nil, resp, err
 	}
 
-	return user, resp, nil
+	return &user, resp, nil
 }
