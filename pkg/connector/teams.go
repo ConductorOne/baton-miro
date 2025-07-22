@@ -39,7 +39,7 @@ func (o *teamBuilder) ResourceType(ctx context.Context) *v2.ResourceType {
 	return teamResourceType
 }
 
-func teamResource(ctx context.Context, team *miro.Team) (*v2.Resource, error) {
+func teamResource(_ context.Context, team *miro.Team) (*v2.Resource, error) {
 	profile := map[string]interface{}{
 		"name": team.Name,
 		"id":   team.Id,
