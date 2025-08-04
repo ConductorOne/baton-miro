@@ -17,21 +17,25 @@ Check out [Baton](https://github.com/conductorone/baton) to learn more the proje
 
 2. **Account provisioning**
 
-   - Users
+   - Create Users
 
 3. **Entitlement provisioning**
 
    - Assign User To Team
    - Unassign User To Team
+   - Grant User To Role
+   - Revoke User To Role
 
 ## Required permissions
 
 - `identity:read`
 - `team:read`
-- `team:write` (could be just read if provisioning is not used)
+- `team:write` (required for team provisioning)
 - `organizations:read`
 - `organizations:team:read`
-- `organizations:team:write` (could be just read if provisioning is not used)
+- `organizations:team:write` (required for team provisioning)
+
+**Note:** For user creation (account provisioning), ensure your Miro app has SCIM API access configured.
 
 # Getting Started
 
@@ -94,13 +98,14 @@ Available Commands:
   help               Help about any command
 
 Flags:
-      --miro-access-token string   Miro Access Token
       --client-id string           The client ID used to authenticate with ConductorOne ($BATON_CLIENT_ID)
       --client-secret string       The client secret used to authenticate with ConductorOne ($BATON_CLIENT_SECRET)
   -f, --file string                The path to the c1z file to sync with ($BATON_FILE) (default "sync.c1z")
   -h, --help                       help for baton-miro
       --log-format string          The output format for logs: json, console ($BATON_LOG_FORMAT) (default "json")
       --log-level string           The log level: debug, info, warn, error ($BATON_LOG_LEVEL) (default "info")
+      --miro-access-token       string   Miro Access Token
+      --miro-scim-access-token  string   Miro SCIM Access Token
   -p, --provisioning               This must be set in order for provisioning actions to be enabled. ($BATON_PROVISIONING)
   -v, --version                    version for baton-miro
 

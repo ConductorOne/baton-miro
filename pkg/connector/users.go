@@ -20,11 +20,20 @@ type userBuilder struct {
 	organizationId string
 }
 
+func (b *userBuilder) CreateAccountCapabilityDetails(_ context.Context) (*v2.CredentialDetailsAccountProvisioning, annotations.Annotations, error) {
+	return &v2.CredentialDetailsAccountProvisioning{
+		SupportedCredentialOptions: []v2.CapabilityDetailCredentialOption{
+			v2.CapabilityDetailCredentialOption_CAPABILITY_DETAIL_CREDENTIAL_OPTION_NO_PASSWORD,
+		},
+		PreferredCredentialOption: v2.CapabilityDetailCredentialOption_CAPABILITY_DETAIL_CREDENTIAL_OPTION_NO_PASSWORD,
+	}, nil, nil
+}
+
 func (o *userBuilder) ResourceType(ctx context.Context) *v2.ResourceType {
 	return userResourceType
 }
 
-func userResource(_ context.Context, user *miro.User) (*v2.Resource, error) {
+func userResource(user *miro.User) (*v2.Resource, error) {
 	profile := map[string]interface{}{
 		"email": user.Email,
 		"login": user.Email,
@@ -67,35 +76,34 @@ func (o *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId,
 		return nil, "", nil, wrapError(err, "failed to parse page token")
 	}
 
-	response, _, err := o.client.GetOrganizationMembers(ctx, o.organizationId, cursor, resourcePageSize)
+	response, annos, err := o.client.GetOrganizationMembers(ctx, o.organizationId, cursor, resourcePageSize)
 	if err != nil {
-		return nil, "", nil, wrapError(err, "failed to get users")
+		return nil, "", annos, wrapError(err, "failed to get users")
 	}
 
 	var resources []*v2.Resource
 	for _, user := range response.Data {
-		user := user
-		resource, err := userResource(ctx, &user)
+		resource, err := userResource(&user)
 		if err != nil {
-			return nil, "", nil, wrapError(err, "failed to create user resource")
+			return nil, "", annos, wrapError(err, "failed to create user resource")
 		}
 
 		resources = append(resources, resource)
 	}
 
 	if response.Cursor == "" {
-		return resources, "", nil, nil
+		return resources, "", annos, nil
 	}
 
 	nextCursor, err := handleNextPage(bag, response.Cursor)
 	if err != nil {
-		return nil, "", nil, wrapError(err, "failed to create next page cursor")
+		return nil, "", annos, wrapError(err, "failed to create next page cursor")
 	}
 
 	return resources, nextCursor, nil, nil
 }
 
-// Entitlements always returns an empty slice for users.
+// Entitlements returns license entitlements for users.
 func (o *userBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
 	var rv []*v2.Entitlement
 
@@ -110,37 +118,29 @@ func (o *userBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ *
 		rv = append(rv, entitlement)
 	}
 
-	for _, role := range organizationRoles {
-		assigmentOptions := []ent.EntitlementOption{
-			ent.WithGrantableTo(userResourceType),
-			ent.WithDescription(fmt.Sprintf("Has %s organization role", resource.DisplayName)),
-			ent.WithDisplayName(fmt.Sprintf("%s organization role %s", resource.DisplayName, role)),
-		}
-
-		entitlement := ent.NewAssignmentEntitlement(resource, role, assigmentOptions...)
-		rv = append(rv, entitlement)
-	}
-
 	return rv, "", nil, nil
 }
 
-// Grants always returns an empty slice for users since they don't have any entitlements.
+// Grants returns license grants and role grants for users.
 func (o *userBuilder) Grants(ctx context.Context, resource *v2.Resource, pToken *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	grants, err := o.licenseGrants(ctx, resource)
+	var allGrants []*v2.Grant
+
+	licenseGrants, annos, err := o.licenseGrants(ctx, resource)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, "", annos, err
 	}
+	allGrants = append(allGrants, licenseGrants...)
 
-	organizationRoleGrants, err := o.organizationRoleGrants(ctx, resource)
+	roleGrants, annos, err := o.roleGrants(ctx, resource)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, "", annos, err
 	}
+	allGrants = append(allGrants, roleGrants...)
 
-	grants = append(grants, organizationRoleGrants...)
-
-	return grants, "", nil, nil
+	return allGrants, "", annos, nil
 }
 
+// CreateAccount creates a new user in Miro using the SCIM API.
 func (o *userBuilder) CreateAccount(
 	ctx context.Context,
 	accountInfo *v2.AccountInfo,
@@ -164,58 +164,59 @@ func (o *userBuilder) CreateAccount(
 		}
 	}
 
-	createUserReq := &miro.CreateUserRequest{
-		Schemas:  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
-		UserName: profile["email"].(string),
-		Name: miro.RequestName{
-			GivenName:  profile["first_name"].(string),
-			FamilyName: profile["last_name"].(string),
-		},
+	newUser, annos, err := o.client.CreateUser(ctx, profile["email"].(string), profile["first_name"].(string), profile["last_name"].(string))
+	if err != nil {
+		return nil, nil, annos, wrapError(err, "failed to create miro user")
 	}
 
-	newUser, _, err := o.client.CreateUser(ctx, createUserReq)
+	resource, err := userResource(newUser)
 	if err != nil {
-		return nil, nil, nil, wrapError(err, "failed to create miro user")
-	}
-
-	resource, err := userResource(ctx, newUser)
-	if err != nil {
-		return nil, nil, nil, wrapError(err, "failed to create user resource from miro user")
+		return nil, nil, annos, wrapError(err, "failed to create user resource from miro user")
 	}
 
 	return &v2.CreateAccountResponse_SuccessResult{
 		Resource: resource,
-	}, nil, nil, nil
+	}, nil, annos, nil
 }
 
-func (o *userBuilder) licenseGrants(ctx context.Context, resource *v2.Resource) ([]*v2.Grant, error) {
-	user, _, err := o.client.GetOrganizationMember(ctx, o.organizationId, resource.Id.Resource)
+// licenseGrants returns a grant for the user's license.
+func (o *userBuilder) licenseGrants(ctx context.Context, resource *v2.Resource) ([]*v2.Grant, annotations.Annotations, error) {
+	user, annos, err := o.client.GetOrganizationMember(ctx, o.organizationId, resource.Id.Resource)
 	if err != nil {
-		return nil, wrapError(err, "failed to get user")
+		return nil, annos, wrapError(err, "failed to get user")
+	}
+
+	if user.License == "" {
+		return nil, annos, wrapError(nil, "user does not have a valid license")
 	}
 
 	if !contains(licenses, user.License) {
-		return nil, wrapError(nil, "user does not have a valid license")
+		return nil, annos, wrapError(nil, "user does not have a valid license")
 	}
-
 	grant := grant.NewGrant(resource, user.License, resource.Id)
 
-	return []*v2.Grant{grant}, nil
+	return []*v2.Grant{grant}, annos, nil
 }
 
-func (o *userBuilder) organizationRoleGrants(ctx context.Context, resource *v2.Resource) ([]*v2.Grant, error) {
-	user, _, err := o.client.GetOrganizationMember(ctx, o.organizationId, resource.Id.Resource)
+// roleGrants returns grants for the user's roles.
+func (o *userBuilder) roleGrants(ctx context.Context, resource *v2.Resource) ([]*v2.Grant, annotations.Annotations, error) {
+	user, annos, err := o.client.GetOrganizationMember(ctx, o.organizationId, resource.Id.Resource)
 	if err != nil {
-		return nil, wrapError(err, "failed to get user")
+		return nil, annos, wrapError(err, "failed to get user")
 	}
 
-	if !contains(organizationRoles, user.Role) {
-		return nil, wrapError(nil, "user does not have a valid role")
+	var grants []*v2.Grant
+	if user.Role != "" {
+		if definition, exists := roleDefinitions[user.Role]; exists {
+			roleResource := &v2.ResourceId{
+				ResourceType: roleResourceType.Id,
+				Resource:     definition.ID,
+			}
+			g := grant.NewGrant(&v2.Resource{Id: roleResource}, assignedRole, resource.Id)
+			grants = append(grants, g)
+		}
 	}
-
-	grant := grant.NewGrant(resource, user.Role, resource.Id)
-
-	return []*v2.Grant{grant}, nil
+	return grants, annos, nil
 }
 
 func newUserBuilder(client *miro.Client, organizationId string) *userBuilder {

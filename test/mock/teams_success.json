@@ -1,0 +1,17 @@
+{
+  "limit": 10,
+  "size": 2,
+  "cursor": "",
+  "data": [
+    {
+      "id": "team-123",
+      "name": "Engineering Team",
+      "type": "team"
+    },
+    {
+      "id": "team-456",
+      "name": "Marketing Team",
+      "type": "team"
+    }
+  ]
+}

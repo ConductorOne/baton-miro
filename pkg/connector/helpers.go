@@ -8,6 +8,10 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 )
 
+const (
+	resourcePageSize = 50
+)
+
 func parsePageToken(i string, resourceID *v2.ResourceId) (*pagination.Bag, string, error) {
 	b := &pagination.Bag{}
 	err := b.Unmarshal(i)
@@ -46,8 +50,6 @@ func contains(s []string, str string) bool {
 	}
 	return false
 }
-
-const resourcePageSize = 50
 
 func parseTime(i string) (*time.Time, error) {
 	if i == "" {

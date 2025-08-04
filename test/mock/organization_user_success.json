@@ -1,0 +1,17 @@
+{
+  "id": "user-123",
+  "type": "user",
+  "active": true,
+  "license": "full",
+  "role": "member",
+  "roles": [
+    {
+      "value": "ORGANIZATION_INTERNAL_USER",
+      "display": "Organization Internal User",
+      "type": "role",
+      "primary": true
+    }
+  ],
+  "email": "john.doe@example.com",
+  "lastActivityAt": "2023-01-01T00:00:00.000Z"
+}

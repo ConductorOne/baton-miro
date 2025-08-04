@@ -9,6 +9,7 @@ type CreateUserRequest struct {
 	Name     RequestName `json:"name"`
 }
 
+// RequestName defines the name of a user.
 type RequestName struct {
 	FamilyName string `json:"familyName"`
 	GivenName  string `json:"givenName"`
@@ -21,10 +22,12 @@ type SCIMError struct {
 	Detail  string   `json:"detail"`
 }
 
+// Error returns the error message for a SCIM error.
 func (e *SCIMError) Error() string {
 	return fmt.Sprintf("miro scim error %s: %s", e.Status, e.Detail)
 }
 
+// Message returns the detail message for a SCIM error.
 func (e *SCIMError) Message() string {
 	return e.Detail
 }

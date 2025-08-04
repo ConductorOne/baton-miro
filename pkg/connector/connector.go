@@ -3,6 +3,7 @@ package connector
 import (
 	"context"
 	"io"
+	"net/http"
 
 	"github.com/conductorone/baton-miro/pkg/miro"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
@@ -21,7 +22,7 @@ func (c *Connector) ResourceSyncers(ctx context.Context) []connectorbuilder.Reso
 	return []connectorbuilder.ResourceSyncer{
 		newUserBuilder(c.Client, c.OrganizationId),
 		newTeamBuilder(c.Client, c.OrganizationId),
-		newRoleBuilder(c.Client),
+		newRoleBuilder(c.Client, c.OrganizationId),
 	}
 }
 
@@ -35,7 +36,7 @@ func (c *Connector) Asset(ctx context.Context, asset *v2.AssetRef) (string, io.R
 func (c *Connector) Metadata(ctx context.Context) (*v2.ConnectorMetadata, error) {
 	return &v2.ConnectorMetadata{
 		DisplayName: "Miro Connector",
-		Description: "Connector syncs data from Miro, including users, teams and roles",
+		Description: "Connector syncs data from Miro, including users, teams, roles and provisioning teams, roles and users.",
 		AccountCreationSchema: &v2.ConnectorAccountCreationSchema{
 			FieldMap: map[string]*v2.ConnectorAccountCreationSchema_Field{
 				"first_name": {
@@ -80,13 +81,21 @@ func (c *Connector) Validate(ctx context.Context) (annotations.Annotations, erro
 }
 
 // New returns a new instance of the connector.
-func New(ctx context.Context, accessToken string) (*Connector, error) {
+func New(ctx context.Context, accessToken string, scimAccessToken string) (*Connector, error) {
 	httpClient, err := uhttp.NewBearerAuth(accessToken).GetClient(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	client := miro.New(httpClient)
+	var scimClient *http.Client
+	if scimAccessToken != "" {
+		scimClient, err = uhttp.NewBearerAuth(scimAccessToken).GetClient(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	client := miro.New(httpClient, scimClient)
 
 	context, _, err := client.GetContext(ctx)
 	if err != nil {

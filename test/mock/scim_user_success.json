@@ -1,0 +1,28 @@
+{
+  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
+  "id": "user-123",
+  "userName": "john.doe@example.com",
+  "name": {
+    "familyName": "Doe",
+    "givenName": "John"
+  },
+  "displayName": "John Doe",
+  "active": true,
+  "userType": "Employee",
+  "emails": [
+    {
+      "value": "john.doe@example.com",
+      "display": "john.doe@example.com",
+      "primary": true
+    }
+  ],
+  "groups": [],
+  "roles": [
+    {
+      "value": "ORGANIZATION_INTERNAL_USER",
+      "display": "Organization Internal User",
+      "type": "role",
+      "primary": true
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "limit": 10,
+  "size": 2,
+  "cursor": "",
+  "type": "team_member",
+  "data": [
+    {
+      "id": "user-123",
+      "role": "admin",
+      "createdAt": "2023-01-01T00:00:00.000Z",
+      "createdBy": "admin-user",
+      "modifiedAt": "2023-01-01T00:00:00.000Z",
+      "modifiedBy": "admin-user",
+      "teamId": "team-123",
+      "type": "team_member"
+    },
+    {
+      "id": "user-456",
+      "role": "member",
+      "createdAt": "2023-01-01T00:00:00.000Z",
+      "createdBy": "admin-user",
+      "modifiedAt": "2023-01-01T00:00:00.000Z",
+      "modifiedBy": "admin-user",
+      "teamId": "team-123",
+      "type": "team_member"
+    }
+  ]
+}

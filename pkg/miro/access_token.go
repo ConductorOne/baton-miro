@@ -3,9 +3,11 @@ package miro
 import (
 	"context"
 	"net/http"
-	"net/url"
+
+	"github.com/conductorone/baton-sdk/pkg/annotations"
 )
 
+// Context is the context for the Miro client.
 type Context struct {
 	Type         string        `json:"type"`
 	Team         *Team         `json:"team"`
@@ -14,26 +16,18 @@ type Context struct {
 	Organization *Organization `json:"organization"`
 }
 
+// accessTokenUrl is the URL for the Access Token endpoint.
 const (
 	accessTokenUrl = "/v1/oauth-token" //nolint:gosec // This is a URL path, not a hardcoded credential.
 )
 
-func (c *Client) GetContext(ctx context.Context) (*Context, *http.Response, error) {
-	stringUrl, err := url.JoinPath(c.baseUrl, accessTokenUrl)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	u, err := url.Parse(stringUrl)
-	if err != nil {
-		return nil, nil, err
-	}
-
+// GetContext gets the context for the Miro client.
+func (c *Client) GetContext(ctx context.Context) (*Context, annotations.Annotations, error) {
 	accessToken := new(Context)
-	resp, err := c.doRequest(ctx, u, http.MethodGet, accessToken, nil)
+	_, annos, err := c.doRequest(ctx, accessTokenUrl, http.MethodGet, accessToken, nil)
 	if err != nil {
-		return nil, resp, err
+		return nil, annos, err
 	}
 
-	return accessToken, resp, nil
+	return accessToken, annos, nil
 }

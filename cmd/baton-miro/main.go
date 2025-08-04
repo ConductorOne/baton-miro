@@ -50,7 +50,8 @@ func getConnector[T field.Configurable](ctx context.Context, config T) (types.Co
 	}
 
 	accessToken := config.GetString(cfg.MiroAccessToken.FieldName)
-	cb, err := connector.New(ctx, accessToken)
+	scimAccessToken := config.GetString(cfg.MiroScimAccessToken.FieldName)
+	cb, err := connector.New(ctx, accessToken, scimAccessToken)
 	if err != nil {
 		return nil, err
 	}

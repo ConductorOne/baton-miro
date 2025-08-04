@@ -1,5 +1,6 @@
 package miro
 
+// User is the response from the GetUser endpoint.
 type User struct {
 	Id             string `json:"id"`
 	Type           string `json:"type"`
@@ -10,6 +11,7 @@ type User struct {
 	LastActivityAt string `json:"lastActivityAt"`
 }
 
+// ScimUserRole is the response from the GetUser endpoint.
 type ScimUserRole struct {
 	Value   string `json:"value"`
 	Display string `json:"display"`
@@ -17,22 +19,26 @@ type ScimUserRole struct {
 	Primary bool   `json:"primary"`
 }
 
+// ScimUserEmail is the response from the GetUser endpoint.
 type ScimUserEmail struct {
 	Value   string `json:"value"`
 	Display string `json:"display"`
 	Primary bool   `json:"primary"`
 }
 
+// ScimUserGroup is the response from the GetUser endpoint.
 type ScimUserGroup struct {
 	Value   string `json:"value"`
 	Display string `json:"display"`
 }
 
+// ScimUserName is the response from the GetUser endpoint.
 type ScimUserName struct {
 	FamilyName string `json:"familyName"`
 	GivenName  string `json:"givenName"`
 }
 
+// ScimUser is the response from the GetUser endpoint.
 type ScimUser struct {
 	Schemas     []string        `json:"schemas"`
 	Id          string          `json:"id"`
@@ -46,11 +52,13 @@ type ScimUser struct {
 	Roles       []ScimUserRole  `json:"roles"`
 }
 
+// PatchOp is the response from the GetUser endpoint.
 type PatchOp struct {
 	Schemas    []string      `json:"schemas"`
 	Operations []PatchOpItem `json:"Operations"`
 }
 
+// PatchOpItem is the response from the GetUser endpoint.
 type PatchOpItem struct {
 	Op    string      `json:"op"`
 	Path  string      `json:"path"`

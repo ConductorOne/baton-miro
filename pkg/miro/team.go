@@ -4,34 +4,49 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+
+	"github.com/conductorone/baton-sdk/pkg/annotations"
 )
 
 type (
+	// Team is the response from the GetTeams endpoint.
 	Team struct {
 		Id   string `json:"id"`
 		Name string `json:"name"`
 		Type string `json:"type"`
 	}
+	// GetTeamsResponse is the response from the GetTeams endpoint.
 	GetTeamsResponse struct {
 		Limit  int32  `json:"limit"`
 		Size   int32  `json:"size"`
 		Cursor string `json:"cursor"`
 		Data   []Team `json:"data"`
 	}
+	// TeamMember is the response from the GetTeamMembers endpoint.
 	TeamMember struct {
-		Id   string `json:"id"`
-		Role string `json:"role"`
+		Id         string `json:"id"`
+		Role       string `json:"role"`
+		CreatedAt  string `json:"createdAt"`
+		CreatedBy  string `json:"createdBy"`
+		ModifiedAt string `json:"modifiedAt"`
+		ModifiedBy string `json:"modifiedBy"`
+		TeamId     string `json:"teamId"`
+		Type       string `json:"type"`
 	}
+	// GetTeamMembersResponse is the response from the GetTeamMembers endpoint.
 	GetTeamMembersResponse struct {
 		Limit  int32        `json:"limit"`
 		Size   int32        `json:"size"`
 		Cursor string       `json:"cursor"`
 		Data   []TeamMember `json:"data"`
+		Type   string       `json:"type"`
 	}
+	// InviteTeamMemberBody is the body for the InviteTeamMember endpoint.
 	InviteTeamMemberBody struct {
 		Email string `json:"email"`
 		Role  string `json:"role"`
 	}
+	// InviteTeamMemberResponse is the response from the InviteTeamMember endpoint.
 	InviteTeamMemberResponse struct {
 		TeamId string `json:"teamId"`
 		Role   string `json:"role"`
@@ -40,53 +55,57 @@ type (
 )
 
 const (
-	TeamsUrl       = "v2/orgs/%s/teams"
-	TeamMembersUrl = "v2/orgs/%s/teams/%s/members"
+	TeamsUrl       = "/v2/orgs/%s/teams"
+	TeamMembersUrl = "/v2/orgs/%s/teams/%s/members"
 )
 
-func (c *Client) GetTeams(ctx context.Context, organizationId string, cursor string, limit int32, query ...queryFunction) (*GetTeamsResponse, *http.Response, error) {
-	teamsUrl, err := buildResourceURL(c.baseUrl, fmt.Sprintf(TeamsUrl, organizationId))
+// GetTeams gets the teams for a given organization.
+func (c *Client) GetTeams(ctx context.Context, organizationId string, cursor string, limit int32, opts ...ReqOpt) (*GetTeamsResponse, annotations.Annotations, error) {
+	teamsUrl, err := buildResourceURL(fmt.Sprintf(TeamsUrl, organizationId))
 	if err != nil {
 		return nil, nil, err
 	}
 
+	requestOpts := []ReqOpt{WithLimit(limit)}
 	if cursor != "" {
-		query = append(query, WithCursor(cursor))
+		requestOpts = append(requestOpts, WithCursor(cursor))
 	}
-	addQueryParams(teamsUrl, query...)
+	requestOpts = append(requestOpts, opts...)
 
 	var teams GetTeamsResponse
-	resp, err := c.doRequest(ctx, teamsUrl, http.MethodGet, &teams, nil)
+	_, annos, err := c.doRequest(ctx, teamsUrl.String(), http.MethodGet, &teams, nil, requestOpts...)
 	if err != nil {
-		return nil, resp, err
+		return nil, annos, err
 	}
 
-	return &teams, resp, nil
+	return &teams, annos, nil
 }
 
-func (c *Client) GetTeamMembers(ctx context.Context, organizationId string, teamId string, cursor string, limit int32, query ...queryFunction) (*GetTeamMembersResponse, *http.Response, error) {
-	teamMembersUrl, err := buildResourceURL(c.baseUrl, fmt.Sprintf(TeamMembersUrl, organizationId, teamId))
+// GetTeamMembers gets the team members for a given organization and team.
+func (c *Client) GetTeamMembers(ctx context.Context, organizationId string, teamId string, cursor string, limit int32, opts ...ReqOpt) (*GetTeamMembersResponse, annotations.Annotations, error) {
+	teamMembersUrl, err := buildResourceURL(fmt.Sprintf(TeamMembersUrl, organizationId, teamId))
 	if err != nil {
 		return nil, nil, err
 	}
 
-	query = append(query, WithLimit(limit))
+	requestOpts := []ReqOpt{WithLimit(limit)}
 	if cursor != "" {
-		query = append(query, WithCursor(cursor))
+		requestOpts = append(requestOpts, WithCursor(cursor))
 	}
-	addQueryParams(teamMembersUrl, query...)
+	requestOpts = append(requestOpts, opts...)
 
 	var teamMembers GetTeamMembersResponse
-	resp, err := c.doRequest(ctx, teamMembersUrl, http.MethodGet, &teamMembers, nil)
+	_, annos, err := c.doRequest(ctx, teamMembersUrl.String(), http.MethodGet, &teamMembers, nil, requestOpts...)
 	if err != nil {
-		return nil, resp, err
+		return nil, annos, err
 	}
 
-	return &teamMembers, resp, nil
+	return &teamMembers, annos, nil
 }
 
-func (c *Client) InviteTeamMember(ctx context.Context, organizationId string, teamId string, email string, role string) (*InviteTeamMemberResponse, *http.Response, error) {
-	teamMembersUrl, err := buildResourceURL(c.baseUrl, fmt.Sprintf(TeamMembersUrl, organizationId, teamId))
+// InviteTeamMember invites a team member to a given organization and team.
+func (c *Client) InviteTeamMember(ctx context.Context, organizationId string, teamId string, email string, role string) (*InviteTeamMemberResponse, annotations.Annotations, error) {
+	teamMembersUrl, err := buildResourceURL(fmt.Sprintf(TeamMembersUrl, organizationId, teamId))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -97,24 +116,25 @@ func (c *Client) InviteTeamMember(ctx context.Context, organizationId string, te
 	}
 
 	var inviteTeamMemberResponse InviteTeamMemberResponse
-	resp, err := c.doRequest(ctx, teamMembersUrl, http.MethodPost, &inviteTeamMemberResponse, body)
+	_, annos, err := c.doRequest(ctx, teamMembersUrl.String(), http.MethodPost, &inviteTeamMemberResponse, body)
 	if err != nil {
-		return nil, resp, err
+		return nil, annos, err
 	}
 
-	return &inviteTeamMemberResponse, resp, nil
+	return &inviteTeamMemberResponse, annos, nil
 }
 
-func (c *Client) RemoveTeamMember(ctx context.Context, organizationId string, teamId string, userId string) (*http.Response, error) {
-	teamMembersUrl, err := buildResourceURL(c.baseUrl, fmt.Sprintf(TeamMembersUrl, organizationId, teamId), userId)
+// RemoveTeamMember removes a team member from a given organization and team.
+func (c *Client) RemoveTeamMember(ctx context.Context, organizationId string, teamId string, userId string) (annotations.Annotations, error) {
+	teamMembersUrl, err := buildResourceURL(fmt.Sprintf(TeamMembersUrl, organizationId, teamId), userId)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := c.doRequest(ctx, teamMembersUrl, http.MethodDelete, nil, nil)
+	_, annos, err := c.doRequest(ctx, teamMembersUrl.String(), http.MethodDelete, nil, nil)
 	if err != nil {
-		return resp, err
+		return annos, err
 	}
 
-	return resp, nil
+	return annos, nil
 }

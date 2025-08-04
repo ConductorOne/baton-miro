@@ -11,7 +11,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Run linters
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v6
         with:
           version: latest
           args: --timeout=3m
@@ -22,7 +22,8 @@ jobs:
         platform: [ubuntu-latest]
     runs-on: ${{ matrix.platform }}
     env:
-      BATON_MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
+      BATON_MIRO_ACCESS_TOKEN: ${{ secrets.BATON_MIRO_ACCESS_TOKEN }}
+      BATON_MIRO_SCIM_ACCESS_TOKEN: ${{ secrets.BATON_MIRO_SCIM_ACCESS_TOKEN }}
     steps:
       - name: Install Go
         if: success()
@@ -43,7 +44,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BATON_LOG_LEVEL: debug
-      BATON_MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
+      BATON_MIRO_ACCESS_TOKEN: ${{ secrets.BATON_MIRO_ACCESS_TOKEN }}
+      BATON_MIRO_SCIM_ACCESS_TOKEN: ${{ secrets.BATON_MIRO_SCIM_ACCESS_TOKEN }}
     steps:
       - name: Install Go
         uses: actions/setup-go@v5
@@ -54,14 +56,18 @@ jobs:
       - name: Build baton-miro
         run: go build -o baton-miro ./cmd/baton-miro
       - name: Validate capabilities
+        if: env.BATON_MIRO_ACCESS_TOKEN != '' && env.BATON_MIRO_SCIM_ACCESS_TOKEN != ''
         run: |
           ./baton-miro \
             --miro-access-token "$BATON_MIRO_ACCESS_TOKEN" \
+            --miro-scim-access-token "$BATON_MIRO_SCIM_ACCESS_TOKEN" \
           capabilities
       - name: Run basic sync test
+        if: env.BATON_MIRO_ACCESS_TOKEN != '' && env.BATON_MIRO_SCIM_ACCESS_TOKEN != ''
         run: |
           ./baton-miro \
             --miro-access-token "$BATON_MIRO_ACCESS_TOKEN" \
+            --miro-scim-access-token "$BATON_MIRO_SCIM_ACCESS_TOKEN" \
             --log-level debug \
             --file sync.c1z
 
