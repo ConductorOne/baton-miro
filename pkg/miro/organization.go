@@ -2,18 +2,20 @@ package miro
 
 import (
 	"context"
+	"fmt"
 	"net/http"
-	"net/url"
 
-	"github.com/conductorone/baton-sdk/pkg/uhttp"
+	"github.com/conductorone/baton-sdk/pkg/annotations"
 )
 
 type (
+	// Organization is the response from the GetOrganization endpoint.
 	Organization struct {
 		Id   string `json:"id"`
 		Name string `json:"name"`
 		Type string `json:"type"`
 	}
+	// GetOrganizationMembersResponse is the response from the GetOrganizationMembers endpoint.
 	GetOrganizationMembersResponse struct {
 		Limit  int32  `json:"limit"`
 		Size   int32  `json:"size"`
@@ -22,58 +24,44 @@ type (
 	}
 )
 
-func (c *Client) GetOrganizationMembers(ctx context.Context, organizationId, cursor string, limit int32, query ...queryFunction) (*GetOrganizationMembersResponse, *http.Response, error) {
-	stringUrl, err := url.JoinPath(c.baseUrl, "v2/orgs", organizationId, "members")
+const (
+	OrganizationMembersUrl = "v2/orgs/%s/members"
+)
+
+// GetOrganizationMembers gets the organization members for a given organization.
+func (c *Client) GetOrganizationMembers(ctx context.Context, organizationId string, cursor string, limit int32, opts ...ReqOpt) (*GetOrganizationMembersResponse, annotations.Annotations, error) {
+	getOrganizationMembersUrl, err := buildResourceURL(fmt.Sprintf(OrganizationMembersUrl, organizationId))
 	if err != nil {
 		return nil, nil, err
 	}
 
-	u, err := url.Parse(stringUrl)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req, err := c.NewRequest(ctx, http.MethodGet, u)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	query = append(query, WithLimit(limit))
+	requestOpts := []ReqOpt{WithLimit(limit)}
 	if cursor != "" {
-		query = append(query, WithCursor(cursor))
+		requestOpts = append(requestOpts, WithCursor(cursor))
 	}
-	addQueryParams(req, query...)
+	requestOpts = append(requestOpts, opts...)
 
-	users := new(GetOrganizationMembersResponse)
-	resp, err := c.Do(req, uhttp.WithJSONResponse(users))
+	var users GetOrganizationMembersResponse
+	_, annos, err := c.doRequest(ctx, getOrganizationMembersUrl.String(), http.MethodGet, &users, nil, requestOpts...)
 	if err != nil {
-		return nil, resp, err
+		return nil, annos, err
 	}
 
-	return users, resp, nil
+	return &users, annos, nil
 }
 
-func (c *Client) GetOrganizationMember(ctx context.Context, organizationId, userId string) (*User, *http.Response, error) {
-	stringValue, err := url.JoinPath(c.baseUrl, "v2/orgs", organizationId, "members", userId)
+// GetOrganizationMember gets the organization member for a given organization and user.
+func (c *Client) GetOrganizationMember(ctx context.Context, organizationId string, userId string) (*User, annotations.Annotations, error) {
+	getOrganizationMemberUrl, err := buildResourceURL(fmt.Sprintf(OrganizationMembersUrl, organizationId), userId)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	u, err := url.Parse(stringValue)
+	var user User
+	_, annos, err := c.doRequest(ctx, getOrganizationMemberUrl.String(), http.MethodGet, &user, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, annos, err
 	}
 
-	req, err := c.NewRequest(ctx, http.MethodGet, u)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	user := new(User)
-	resp, err := c.Do(req, uhttp.WithJSONResponse(user))
-	if err != nil {
-		return nil, resp, err
-	}
-
-	return user, resp, nil
+	return &user, annos, nil
 }

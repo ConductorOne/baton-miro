@@ -1,25 +1,41 @@
-![Baton Logo](./docs/images/baton-logo.png)
+![Baton Logo](./baton-logo.png)
 
 # `baton-miro` [![Go Reference](https://pkg.go.dev/badge/github.com/conductorone/baton-miro.svg)](https://pkg.go.dev/github.com/conductorone/baton-miro) ![main ci](https://github.com/conductorone/baton-miro/actions/workflows/main.yaml/badge.svg)
 
-`baton-miro` is a connector for Baton built using the [Baton SDK](https://github.com/conductorone/baton-sdk). It works with Miro API.
+`baton-miro` is a connector for Baton built using the [Baton SDK](https://github.com/conductorone/baton-sdk).
 
-Check out [Baton](https://github.com/conductorone/baton) to learn more about the project in general.
+Check out [Baton](https://github.com/conductorone/baton) to learn more the project in general.
 
-# Prerequisites
+## Connector Capabilities
 
-Connector requires bearer access token that is used throughout the communication with API. To obtain this token, you have to create one in Miro. More in information about how to generate token [here](https://developers.miro.com/docs/try-out-the-rest-api-in-less-than-3-minutes)). 
+1. **Resources synced**:
 
-After you have obtained access token, you can use it with connector. You can do this by setting `BATON_MIRO_ACCESS_TOKEN` or by passing `--miro-access-token`.
+   - Users
+   - Teams
+   - Roles
+   - Licenses
+
+2. **Account provisioning**
+
+   - Create Users
+
+3. **Entitlement provisioning**
+
+   - Assign User To Team
+   - Unassign User To Team
+   - Grant User To Role
+   - Revoke User To Role
 
 ## Required permissions
 
-- identity:read
-- team:read
-- team:write (could be just read if provisioning is not used)
-- organizations:read
-- organizations:team:read
-- organizations:team:write (could be just read if provisioning is not used)
+- `identity:read`
+- `team:read`
+- `team:write` (required for team provisioning)
+- `organizations:read`
+- `organizations:team:read`
+- `organizations:team:write` (required for team provisioning)
+
+**Note:** For user creation (account provisioning), ensure your Miro app has SCIM API access configured.
 
 # Getting Started
 
@@ -27,8 +43,7 @@ After you have obtained access token, you can use it with connector. You can do 
 
 ```
 brew install conductorone/baton/baton conductorone/baton/baton-miro
-
-BATON_MIRO_ACCESS_TOKEN=token baton-miro
+baton-miro
 baton resources
 ```
 
@@ -45,22 +60,26 @@ docker run --rm -v $(pwd):/out ghcr.io/conductorone/baton:latest -f "/out/sync.c
 go install github.com/conductorone/baton/cmd/baton@main
 go install github.com/conductorone/baton-miro/cmd/baton-miro@main
 
-BATON_MIRO_ACCESS_TOKEN=token baton-miro
+baton-miro
+
 baton resources
 ```
 
 # Data Model
 
-`baton-miro` will fetch information about the following Baton resources:
+`baton-miro` will pull down information about the following resources:
 
 - Users
 - Teams
-- Licenses
 - Roles
+- Licenses
 
 # Contributing, Support and Issues
 
-We started Baton because we were tired of taking screenshots and manually building spreadsheets. We welcome contributions, and ideas, no matter how small -- our goal is to make identity and permissions sprawl less painful for everyone. If you have questions, problems, or ideas: Please open a Github Issue!
+We started Baton because we were tired of taking screenshots and manually
+building spreadsheets. We welcome contributions, and ideas, no matter how
+small&mdash;our goal is to make identity and permissions sprawl less painful for
+everyone. If you have questions, problems, or ideas: Please open a GitHub Issue!
 
 See [CONTRIBUTING.md](https://github.com/ConductorOne/baton/blob/main/CONTRIBUTING.md) for more details.
 
@@ -85,7 +104,8 @@ Flags:
   -h, --help                       help for baton-miro
       --log-format string          The output format for logs: json, console ($BATON_LOG_FORMAT) (default "json")
       --log-level string           The log level: debug, info, warn, error ($BATON_LOG_LEVEL) (default "info")
-      --miro-access-token string   Miro Access Token
+      --miro-access-token       string   Miro Access Token
+      --miro-scim-access-token  string   Miro SCIM Access Token
   -p, --provisioning               This must be set in order for provisioning actions to be enabled. ($BATON_PROVISIONING)
   -v, --version                    version for baton-miro
 

@@ -4,7 +4,8 @@ package config
 import "reflect"
 
 type Miro struct {
-	AccessToken string `mapstructure:"miro-access-token"`
+	AccessToken     string `mapstructure:"miro-access-token"`
+	ScimAccessToken string `mapstructure:"miro-scim-access-token"`
 }
 
 func (c *Miro) findFieldByTag(tagValue string) (any, bool) {

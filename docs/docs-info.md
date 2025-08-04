@@ -1,22 +1,54 @@
+# Miro Connector Setup Guide
+
 While developing the connector, please fill out this form. This information is needed to write docs and to help other users set up the connector.
+
+---
 
 ## Connector capabilities
 
-1. What resources does the connector sync?
+This connector syncs the following resources:
 
-2. Can the connector provision any resources? If so, which ones?
+- Users
+- Teams
+- Roles
+- Licenses
+
+It also supports provisioning for:
+
+- Create Users
+- Assign and unassign users to teams
+- Grant and revoke roles to users
+
+---
 
 ## Connector credentials
 
-1. What credentials or information are needed to set up the connector? (For example, API key, client ID and secret, domain, etc.)
+1. **What credentials or information are needed to set up the connector?**
 
-2. For each item in the list above:
+   **Required:**
 
-   - How does a user create or look up that credential or info? Please include links to (non-gated) documentation, screenshots (of the UI or of gated docs), or a video of the process.
+   - Miro Access Token
 
-   * - Create new user accounts.
-   * - Manage role assignments for users (updating user-role mappings).
+   **Optional:**
 
-   - If applicable: Is the list of scopes or permissions different to sync (read) versus provision (read-write)? If so, list the difference here.
+   - Miro SCIM Access Token
 
-   - What level of access or permissions does the user need in order to create the credentials? (For example, must be a super administrator, must have access to the admin console, etc.)
+   **Command line arguments:**
+
+   - `--miro-access-token`
+   - `--miro-scim-access-token`
+
+2. **How to obtain the credentials:**
+
+   **Miro Access Token:**
+
+   1. Log in to [Miro](https://miro.com/login/)
+   2. Follow the instructions [here](https://developers.miro.com/docs/try-out-the-rest-api-in-less-than-3-minutes) to create an access token
+
+   **Miro SCIM Access Token:**
+   To manage users and teams with SCIM in your Miro Enterprise account, you need to enable the feature first:
+
+   1. Navigate to Settings > Enterprise Integrations page and enable the SSO/SAML feature
+   2. Enable the SCIM feature, which will provide you with the Base URL and API Token to configure your identity provider
+
+---

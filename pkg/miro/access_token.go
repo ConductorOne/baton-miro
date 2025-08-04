@@ -3,11 +3,11 @@ package miro
 import (
 	"context"
 	"net/http"
-	"net/url"
 
-	"github.com/conductorone/baton-sdk/pkg/uhttp"
+	"github.com/conductorone/baton-sdk/pkg/annotations"
 )
 
+// Context is the context for the Miro client.
 type Context struct {
 	Type         string        `json:"type"`
 	Team         *Team         `json:"team"`
@@ -16,27 +16,18 @@ type Context struct {
 	Organization *Organization `json:"organization"`
 }
 
-func (c *Client) GetContext(ctx context.Context) (*Context, *http.Response, error) {
-	stringUrl, err := url.JoinPath(c.baseUrl, "/v1/oauth-token")
+// accessTokenUrl is the URL for the Access Token endpoint.
+const (
+	accessTokenUrl = "/v1/oauth-token" //nolint:gosec // This is a URL path, not a hardcoded credential.
+)
+
+// GetContext gets the context for the Miro client.
+func (c *Client) GetContext(ctx context.Context) (*Context, annotations.Annotations, error) {
+	accessToken := new(Context)
+	_, annos, err := c.doRequest(ctx, accessTokenUrl, http.MethodGet, accessToken, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, annos, err
 	}
 
-	u, err := url.Parse(stringUrl)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req, err := c.NewRequest(ctx, http.MethodGet, u)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	context := new(Context)
-	resp, err := c.Do(req, uhttp.WithJSONResponse(context))
-	if err != nil {
-		return nil, resp, err
-	}
-
-	return context, resp, nil
+	return accessToken, annos, nil
 }

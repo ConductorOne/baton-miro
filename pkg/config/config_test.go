@@ -15,15 +15,30 @@ func TestValidateConfig(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "valid config",
+			name: "valid config with access token",
 			config: &Miro{
 				AccessToken: "test-access-token",
 			},
 			wantErr: false,
 		},
 		{
-			name:    "invalid config - missing required fields",
+			name: "valid config with access token and scim access token",
+			config: &Miro{
+				AccessToken:     "test-access-token",
+				ScimAccessToken: "test-scim-access-token",
+			},
+			wantErr: false,
+		},
+		{
+			name:    "invalid config - missing access token",
 			config:  &Miro{},
+			wantErr: true,
+		},
+		{
+			name: "invalid config - empty access token",
+			config: &Miro{
+				AccessToken: "",
+			},
 			wantErr: true,
 		},
 	}
