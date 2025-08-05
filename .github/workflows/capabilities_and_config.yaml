@@ -28,7 +28,9 @@ jobs:
         run: ./connector config > config_schema.json
 
       - name: Run and save capabilities output
-        run: ./connector --miro-access-token=${{ secrets.BATON_MIRO_ACCESS_TOKEN }} capabilities > baton_capabilities.json
+        env:
+          BATON_MIRO_ACCESS_TOKEN: ${{ secrets.BATON_MIRO_ACCESS_TOKEN }}
+        run: ./connector --miro-access-token=$BATON_MIRO_ACCESS_TOKEN capabilities > baton_capabilities.json
 
       - name: Commit changes
         uses: EndBug/add-and-commit@v9
