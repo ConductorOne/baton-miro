@@ -25,7 +25,7 @@ func main() {
 	_, cmd, err := config.DefineConfiguration(
 		ctx,
 		"baton-miro",
-		getConnector[*cfg.Miro],
+		getConnector,
 		cfg.Config,
 	)
 	if err != nil {
@@ -43,15 +43,13 @@ func main() {
 }
 
 // TODO: After the config has been generated, update this function to use the config.
-func getConnector[T field.Configurable](ctx context.Context, config T) (types.ConnectorServer, error) {
+func getConnector(ctx context.Context, config *cfg.Miro) (types.ConnectorServer, error) {
 	l := ctxzap.Extract(ctx)
 	if err := field.Validate(cfg.Config, config); err != nil {
 		return nil, err
 	}
 
-	accessToken := config.GetString(cfg.MiroAccessToken.FieldName)
-	scimAccessToken := config.GetString(cfg.MiroScimAccessToken.FieldName)
-	cb, err := connector.New(ctx, accessToken, scimAccessToken)
+	cb, err := connector.New(ctx, config.AccessToken, config.ScimAccessToken)
 	if err != nil {
 		return nil, err
 	}
