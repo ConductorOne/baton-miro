@@ -119,14 +119,16 @@ func (o *userBuilder) Grants(ctx context.Context, resource *v2.Resource, pToken 
 	licenseGrants, err := o.licenseGrants(user, resource)
 	if err != nil {
 		return nil, "", annos, err
+	} else if licenseGrants != nil {
+		grants = append(grants, licenseGrants)
 	}
-	grants = append(grants, licenseGrants)
 
 	roleGrants, err := o.roleGrants(user, resource)
 	if err != nil {
 		return nil, "", annos, err
+	} else if roleGrants != nil {
+		grants = append(grants, roleGrants)
 	}
-	grants = append(grants, roleGrants)
 
 	return grants, "", annos, nil
 }
