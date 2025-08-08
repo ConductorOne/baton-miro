@@ -107,7 +107,7 @@ func (o *userBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ *
 	return nil, "", nil, nil
 }
 
-// Grants returns license grants and role grants for users.
+// Grants returns role grants for users.
 func (o *userBuilder) Grants(ctx context.Context, resource *v2.Resource, pToken *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
 	var grants []*v2.Grant
 
@@ -116,16 +116,9 @@ func (o *userBuilder) Grants(ctx context.Context, resource *v2.Resource, pToken 
 		return nil, "", annos, wrapError(err, "failed to get user")
 	}
 
-	licenseGrants, err := o.licenseGrants(user, resource)
-	if err != nil {
-		return nil, "", annos, err
-	} else if licenseGrants != nil {
-		grants = append(grants, licenseGrants)
-	}
-
 	roleGrants, err := o.roleGrants(user, resource)
 	if err != nil {
-		return nil, "", annos, err
+		return nil, "", nil, err
 	} else if roleGrants != nil {
 		grants = append(grants, roleGrants)
 	}
@@ -170,21 +163,6 @@ func (o *userBuilder) CreateAccount(
 	return &v2.CreateAccountResponse_SuccessResult{
 		Resource: resource,
 	}, nil, annos, nil
-}
-
-// licenseGrants returns a grant for the user's license.
-func (o *userBuilder) licenseGrants(user *miro.User, resource *v2.Resource) (*v2.Grant, error) {
-	var licenseGrant *v2.Grant
-	if user.License != "" {
-		if definition, exists := licenseDefinitions[user.License]; exists {
-			licenseResource := &v2.ResourceId{
-				ResourceType: licenseResourceType.Id,
-				Resource:     definition.ID,
-			}
-			licenseGrant = grant.NewGrant(&v2.Resource{Id: licenseResource}, licenseAssigned, resource.Id)
-		}
-	}
-	return licenseGrant, nil
 }
 
 // roleGrants returns grants for the user's role.

@@ -24,9 +24,4 @@ var (
 		Description: "Role of Miro organization",
 		Traits:      []v2.ResourceType_Trait{v2.ResourceType_TRAIT_ROLE},
 	}
-	licenseResourceType = &v2.ResourceType{
-		Id:          "license",
-		DisplayName: "License",
-		Description: "License of Miro organization",
-	}
 )
