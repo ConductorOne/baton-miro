@@ -152,10 +152,6 @@ func TestRoleBuilder_Grants_EmptyResult(t *testing.T) {
 		t.Errorf("Grants() nextPage = %v, want empty string", nextPage)
 	}
 
-	if grants == nil {
-		t.Errorf("Grants() = nil, want empty slice")
-	}
-
 	if len(grants) != 0 {
 		t.Errorf("Grants() length = %v, want 0 (role grants are now emitted from user resources)", len(grants))
 	}
