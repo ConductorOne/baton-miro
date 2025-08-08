@@ -13,7 +13,6 @@ Check out [Baton](https://github.com/conductorone/baton) to learn more the proje
    - Users
    - Teams
    - Roles
-   - Licenses
 
 2. **Account provisioning**
 
@@ -72,7 +71,6 @@ baton resources
 - Users
 - Teams
 - Roles
-- Licenses
 
 # Contributing, Support and Issues
 

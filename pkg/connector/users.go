@@ -36,6 +36,7 @@ func userResource(user *miro.User) (*v2.Resource, error) {
 	profile := map[string]interface{}{
 		"email": user.Email,
 		"login": user.Email,
+		"license": user.License,
 	}
 
 	var status v2.UserTrait_Status_Status
