@@ -19,10 +19,6 @@ const (
 	assignedRole   = "assigned"
 )
 
-var organizationRoles = []string{
-	assignedRole,
-}
-
 // roleDefinition is the definition of a role.
 type roleDefinition struct {
 	ID          string
@@ -76,23 +72,21 @@ func (r *roleBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId,
 func (r *roleBuilder) Entitlements(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
 	var rv []*v2.Entitlement
 
-	for _, role := range organizationRoles {
-		assigmentOptions := []entitlement.EntitlementOption{
-			entitlement.WithGrantableTo(userResourceType),
-			entitlement.WithDescription(fmt.Sprintf("Has %s organization role", resource.DisplayName)),
-			entitlement.WithDisplayName(fmt.Sprintf("%s organization role %s", resource.DisplayName, role)),
-		}
-
-		entitlement := entitlement.NewAssignmentEntitlement(resource, role, assigmentOptions...)
-		rv = append(rv, entitlement)
+	assigmentOptions := []entitlement.EntitlementOption{
+		entitlement.WithGrantableTo(userResourceType),
+		entitlement.WithDescription(fmt.Sprintf("Has %s organization role", resource.DisplayName)),
+		entitlement.WithDisplayName(fmt.Sprintf("%s organization role %s", resource.DisplayName, assignedRole)),
 	}
+
+	entitlement := entitlement.NewAssignmentEntitlement(resource, assignedRole, assigmentOptions...)
+	rv = append(rv, entitlement)
 
 	return rv, "", nil, nil
 }
 
 // Grants returns empty grants - role grants are now emitted from user resources.
 func (r *roleBuilder) Grants(ctx context.Context, resource *v2.Resource, pToken *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	return []*v2.Grant{}, "", nil, nil
+	return nil, "", nil, nil
 }
 
 // Grant grants a role to a principal.
@@ -167,10 +161,9 @@ func (r *roleBuilder) Revoke(ctx context.Context, g *v2.Grant) (annotations.Anno
 }
 
 // newRoleBuilder creates a new role builder.
-func newRoleBuilder(client *miro.Client, organizationId string) *roleBuilder {
+func newRoleBuilder(client *miro.Client) *roleBuilder {
 	return &roleBuilder{
-		client:         client,
-		resourceType:   roleResourceType,
-		organizationId: organizationId,
+		client:       client,
+		resourceType: roleResourceType,
 	}
 }
