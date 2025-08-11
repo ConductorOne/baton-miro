@@ -34,8 +34,8 @@ func (o *userBuilder) ResourceType(ctx context.Context) *v2.ResourceType {
 
 func userResource(user *miro.User) (*v2.Resource, error) {
 	profile := map[string]interface{}{
-		"email": user.Email,
-		"login": user.Email,
+		"email":   user.Email,
+		"login":   user.Email,
 		"license": user.License,
 	}
 
