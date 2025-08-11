@@ -9,7 +9,6 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
-	ent "github.com/conductorone/baton-sdk/pkg/types/entitlement"
 	grant "github.com/conductorone/baton-sdk/pkg/types/grant"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
 )
@@ -35,8 +34,9 @@ func (o *userBuilder) ResourceType(ctx context.Context) *v2.ResourceType {
 
 func userResource(user *miro.User) (*v2.Resource, error) {
 	profile := map[string]interface{}{
-		"email": user.Email,
-		"login": user.Email,
+		"email":   user.Email,
+		"login":   user.Email,
+		"license": user.License,
 	}
 
 	var status v2.UserTrait_Status_Status
@@ -103,41 +103,28 @@ func (o *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId,
 	return resources, nextCursor, nil, nil
 }
 
-// Entitlements returns license entitlements for users.
+// Entitlements always returns an empty slice for users.
 func (o *userBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
-	var rv []*v2.Entitlement
-
-	for _, license := range licenses {
-		assigmentOptions := []ent.EntitlementOption{
-			ent.WithGrantableTo(userResourceType),
-			ent.WithDescription(fmt.Sprintf("Has %s license", resource.DisplayName)),
-			ent.WithDisplayName(fmt.Sprintf("%s is %s license owner", resource.DisplayName, license)),
-		}
-
-		entitlement := ent.NewAssignmentEntitlement(resource, license, assigmentOptions...)
-		rv = append(rv, entitlement)
-	}
-
-	return rv, "", nil, nil
+	return nil, "", nil, nil
 }
 
-// Grants returns license grants and role grants for users.
+// Grants returns role grants for users.
 func (o *userBuilder) Grants(ctx context.Context, resource *v2.Resource, pToken *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	var allGrants []*v2.Grant
+	var grants []*v2.Grant
 
-	licenseGrants, annos, err := o.licenseGrants(ctx, resource)
+	user, annos, err := o.client.GetOrganizationMember(ctx, o.organizationId, resource.Id.Resource)
 	if err != nil {
-		return nil, "", annos, err
+		return nil, "", annos, wrapError(err, "failed to get user")
 	}
-	allGrants = append(allGrants, licenseGrants...)
 
-	roleGrants, annos, err := o.roleGrants(ctx, resource)
+	roleGrants, err := o.roleGrants(user, resource)
 	if err != nil {
-		return nil, "", annos, err
+		return nil, "", nil, err
+	} else if roleGrants != nil {
+		grants = append(grants, roleGrants)
 	}
-	allGrants = append(allGrants, roleGrants...)
 
-	return allGrants, "", annos, nil
+	return grants, "", annos, nil
 }
 
 // CreateAccount creates a new user in Miro using the SCIM API.
@@ -179,44 +166,19 @@ func (o *userBuilder) CreateAccount(
 	}, nil, annos, nil
 }
 
-// licenseGrants returns a grant for the user's license.
-func (o *userBuilder) licenseGrants(ctx context.Context, resource *v2.Resource) ([]*v2.Grant, annotations.Annotations, error) {
-	user, annos, err := o.client.GetOrganizationMember(ctx, o.organizationId, resource.Id.Resource)
-	if err != nil {
-		return nil, annos, wrapError(err, "failed to get user")
-	}
-
-	if user.License == "" {
-		return nil, annos, wrapError(nil, "user does not have a valid license")
-	}
-
-	if !contains(licenses, user.License) {
-		return nil, annos, wrapError(nil, "user does not have a valid license")
-	}
-	grant := grant.NewGrant(resource, user.License, resource.Id)
-
-	return []*v2.Grant{grant}, annos, nil
-}
-
-// roleGrants returns grants for the user's roles.
-func (o *userBuilder) roleGrants(ctx context.Context, resource *v2.Resource) ([]*v2.Grant, annotations.Annotations, error) {
-	user, annos, err := o.client.GetOrganizationMember(ctx, o.organizationId, resource.Id.Resource)
-	if err != nil {
-		return nil, annos, wrapError(err, "failed to get user")
-	}
-
-	var grants []*v2.Grant
+// roleGrants returns grants for the user's role.
+func (o *userBuilder) roleGrants(user *miro.User, resource *v2.Resource) (*v2.Grant, error) {
+	var roleGrant *v2.Grant
 	if user.Role != "" {
 		if definition, exists := roleDefinitions[user.Role]; exists {
 			roleResource := &v2.ResourceId{
 				ResourceType: roleResourceType.Id,
 				Resource:     definition.ID,
 			}
-			g := grant.NewGrant(&v2.Resource{Id: roleResource}, assignedRole, resource.Id)
-			grants = append(grants, g)
+			roleGrant = grant.NewGrant(&v2.Resource{Id: roleResource}, assignedRole, resource.Id)
 		}
 	}
-	return grants, annos, nil
+	return roleGrant, nil
 }
 
 func newUserBuilder(client *miro.Client, organizationId string) *userBuilder {

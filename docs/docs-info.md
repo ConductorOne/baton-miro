@@ -11,7 +11,6 @@ This connector syncs the following resources:
 - Users
 - Teams
 - Roles
-- Licenses
 
 It also supports provisioning for:
 
