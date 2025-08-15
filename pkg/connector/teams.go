@@ -3,6 +3,7 @@ package connector
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/conductorone/baton-miro/pkg/miro"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
@@ -173,7 +174,10 @@ func (o *teamBuilder) Grant(ctx context.Context, principial *v2.Resource, entitl
 		return nil, err
 	}
 
-	role := entitlement.Slug
+	role, err := parseTeamRoleFromEntitlementID(entitlement.Id)
+	if err != nil {
+		return nil, err
+	}
 	if !contains(teamRoles, role) {
 		err := fmt.Errorf("baton-miro: invalid team role %s", role)
 
@@ -223,4 +227,14 @@ func (g *teamBuilder) Revoke(ctx context.Context, grant *v2.Grant) (annotations.
 	}
 
 	return nil, nil
+}
+
+func parseTeamRoleFromEntitlementID(entitlementID string) (string, error) {
+	parts := strings.Split(entitlementID, ":")
+	if len(parts) != 3 {
+		return "", fmt.Errorf("invalid entitlement ID: %s", entitlementID)
+	}
+
+	role := parts[2]
+	return role, nil
 }
