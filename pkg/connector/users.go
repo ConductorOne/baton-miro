@@ -19,6 +19,8 @@ type userBuilder struct {
 	organizationId string
 }
 
+var _ connectorbuilder.AccountManager = &userBuilder{}
+
 func (b *userBuilder) CreateAccountCapabilityDetails(_ context.Context) (*v2.CredentialDetailsAccountProvisioning, annotations.Annotations, error) {
 	return &v2.CredentialDetailsAccountProvisioning{
 		SupportedCredentialOptions: []v2.CapabilityDetailCredentialOption{
@@ -131,7 +133,7 @@ func (o *userBuilder) Grants(ctx context.Context, resource *v2.Resource, pToken 
 func (o *userBuilder) CreateAccount(
 	ctx context.Context,
 	accountInfo *v2.AccountInfo,
-	_ *v2.CredentialOptions,
+	_ *v2.LocalCredentialOptions,
 ) (
 	connectorbuilder.CreateAccountResponse,
 	[]*v2.PlaintextData,
