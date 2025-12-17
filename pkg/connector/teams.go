@@ -14,6 +14,8 @@ import (
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type teamBuilder struct {
@@ -196,6 +198,10 @@ func (o *teamBuilder) Grant(ctx context.Context, principial *v2.Resource, entitl
 
 	_, annos, err = o.client.InviteTeamMember(ctx, o.organizationId, entitlement.Resource.Id.Resource, user.Email, role)
 	if err != nil {
+		// If user already exists in the team (409 Conflict), return GrantAlreadyExists annotation
+		if status.Code(err) == codes.AlreadyExists {
+			return annotations.New(&v2.GrantAlreadyExists{}), nil
+		}
 		return annos, wrapError(err, "failed to invite user to team")
 	}
 
@@ -223,6 +229,10 @@ func (g *teamBuilder) Revoke(ctx context.Context, grant *v2.Grant) (annotations.
 
 	_, err := g.client.RemoveTeamMember(ctx, g.organizationId, entitlement.Resource.Id.Resource, principal.Id.Resource)
 	if err != nil {
+		// If user is not in the team (404 Not Found), return GrantAlreadyRevoked annotation
+		if status.Code(err) == codes.NotFound {
+			return annotations.New(&v2.GrantAlreadyRevoked{}), nil
+		}
 		return nil, wrapError(err, "failed to remove user from team")
 	}
 
