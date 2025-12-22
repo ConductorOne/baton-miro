@@ -1,5 +1,12 @@
 name: ci
-on: pull_request
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+  push:
+    branches:
+      - main
+
 jobs:
   go-lint:
     runs-on: ubuntu-latest
@@ -15,36 +22,34 @@ jobs:
         with:
           version: latest
           args: --timeout=3m
+
   go-test:
     strategy:
       matrix:
         platform: [ubuntu-latest]
     runs-on: ${{ matrix.platform }}
-    env:
-      BATON_MIRO_ACCESS_TOKEN: ${{ secrets.BATON_MIRO_ACCESS_TOKEN }}
-      BATON_MIRO_SCIM_ACCESS_TOKEN: ${{ secrets.BATON_MIRO_SCIM_ACCESS_TOKEN }}
     steps:
       - name: Checkout code
-        if: success()
         uses: actions/checkout@v4
       - name: Install Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: Run go tests
-        run: (set -o pipefail && go test -v -covermode=atomic -json -race ./... | tee test.json)
-      - name: Annotate go tests
+      - name: go tests
+        run: (set -o pipefail && go test -v -covermode=count -json ./... | tee test.json)
+      - name: annotate go tests
         if: always()
         uses: guyarb/golang-test-annotations@v0.6.0
         with:
           test-results: test.json
 
-  integration-test:
+  test-teams:
+    needs: [go-lint, go-test]
     runs-on: ubuntu-latest
     env:
       BATON_LOG_LEVEL: debug
-      BATON_MIRO_ACCESS_TOKEN: ${{ secrets.BATON_MIRO_ACCESS_TOKEN }}
-      BATON_MIRO_SCIM_ACCESS_TOKEN: ${{ secrets.BATON_MIRO_SCIM_ACCESS_TOKEN }}
+      BATON_MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
+      BATON_MIRO_SCIM_ACCESS_TOKEN: ${{ secrets.MIRO_SCIM_ACCESS_TOKEN }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -53,24 +58,39 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Build baton-miro
-        run: go build -o baton-miro ./cmd/baton-miro
-      - name: Validate capabilities
-        if: env.BATON_MIRO_ACCESS_TOKEN != '' && env.BATON_MIRO_SCIM_ACCESS_TOKEN != ''
-        run: |
-          ./baton-miro \
-            --miro-access-token "$BATON_MIRO_ACCESS_TOKEN" \
-            --miro-scim-access-token "$BATON_MIRO_SCIM_ACCESS_TOKEN" \
-          capabilities
-      - name: Run basic sync test
-        if: env.BATON_MIRO_ACCESS_TOKEN != '' && env.BATON_MIRO_SCIM_ACCESS_TOKEN != ''
-        run: |
-          ./baton-miro \
-            --miro-access-token "$BATON_MIRO_ACCESS_TOKEN" \
-            --miro-scim-access-token "$BATON_MIRO_SCIM_ACCESS_TOKEN"
+        run: go build ./cmd/baton-miro
+      - name: Get baton
+        uses: ConductorOne/github-workflows/actions/get-baton@v3
+      - name: Grant/revoke team test
+        uses: ConductorOne/github-workflows/actions/sync-test@v3
+        with:
+          connector: ./baton-miro
+          baton-entitlement: "${{ vars.TEST_TEAM_ENTITLEMENT }}"
+          baton-principal: "${{ vars.TEST_TEAM_PRINCIPAL }}"
+          baton-principal-type: "${{ vars.TEST_TEAM_PRINCIPAL_TYPE }}"
 
-          if [ ! -f "sync.c1z" ]; then
-            echo "Error: File sync.c1z was not generated."
-            exit 1
-          fi
-      - name: List Baton Commands
-        run: ./baton-miro --help
+  test-roles:
+    needs: [test-teams]
+    runs-on: ubuntu-latest
+    env:
+      BATON_LOG_LEVEL: debug
+      BATON_MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
+      BATON_MIRO_SCIM_ACCESS_TOKEN: ${{ secrets.MIRO_SCIM_ACCESS_TOKEN }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build baton-miro
+        run: go build ./cmd/baton-miro
+      - name: Get baton
+        uses: ConductorOne/github-workflows/actions/get-baton@v3
+      - name: Grant/revoke role test
+        uses: ConductorOne/github-workflows/actions/sync-test@v3
+        with:
+          connector: ./baton-miro
+          baton-entitlement: "${{ vars.TEST_ROLE_ENTITLEMENT }}"
+          baton-principal: "${{ vars.TEST_ROLE_PRINCIPAL }}"
+          baton-principal-type: "${{ vars.TEST_ROLE_PRINCIPAL_TYPE }}"

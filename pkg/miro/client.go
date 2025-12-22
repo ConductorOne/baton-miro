@@ -42,8 +42,8 @@ func (c *Client) doRequest(
 	ctx context.Context,
 	endpointUrl string,
 	method string,
-	res interface{},
-	body interface{},
+	res any,
+	body any,
 	opts ...ReqOpt,
 ) (http.Header, annotations.Annotations, error) {
 	l := ctxzap.Extract(ctx)
@@ -99,8 +99,8 @@ func (c *Client) doScimRequest(
 	ctx context.Context,
 	endpointUrl string,
 	method string,
-	res interface{},
-	body interface{},
+	res any,
+	body any,
 	opts ...ReqOpt,
 ) (http.Header, annotations.Annotations, error) {
 	if c.scimClient == nil {

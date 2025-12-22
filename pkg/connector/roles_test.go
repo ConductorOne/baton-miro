@@ -131,8 +131,7 @@ func TestRoleBuilder_Entitlements(t *testing.T) {
 // TestRoleBuilder_Grants_EmptyResult tests that Grants returns empty list.
 func TestRoleBuilder_Grants_EmptyResult(t *testing.T) {
 	builder := &roleBuilder{
-		resourceType:   roleResourceType,
-		organizationId: "test-org-id",
+		resourceType: roleResourceType,
 	}
 
 	resource := &v2.Resource{
