@@ -15,31 +15,16 @@
       "stringField": {}
     },
     {
-      "name": "miro-access-token",
-      "displayName": "Miro Access Token",
-      "description": "Miro access token. This is used to authenticate with the Miro API and sync users, teams and roles. Assign team to user and desasgine user from team.",
-      "isRequired": true,
-      "stringField": {
-        "rules": {
-          "isRequired": true
-        }
+      "name": "session-store-maximum-size",
+      "description": "The maximum size of the local in-memory session store cache in bytes.",
+      "isOps": true,
+      "intField": {
+        "defaultValue": "15728640"
       }
-    },
-    {
-      "name": "miro-scim-access-token",
-      "displayName": "Miro SCIM Access Token",
-      "description": "Miro SCIM access token. This is used to authenticate with the Miro SCIM API and create users. Assign role to user and revoke role from user.",
-      "stringField": {}
     },
     {
       "name": "otel-collector-endpoint",
       "description": "The endpoint of the OpenTelemetry collector to send observability data to (used for both tracing and logging if specific endpoints are not provided)",
-      "isOps": true,
-      "stringField": {}
-    },
-    {
-      "name": "otel-collector-endpoint-tls-cert",
-      "description": "A PEM-encoded certificate to use as a CA for TLS connections to the OpenTelemetry collector",
       "isOps": true,
       "stringField": {}
     },
@@ -50,8 +35,20 @@
       "stringField": {}
     },
     {
+      "name": "otel-collector-endpoint-tls-cert",
+      "description": "A PEM-encoded certificate to use as a CA for TLS connections to the OpenTelemetry collector",
+      "isOps": true,
+      "stringField": {}
+    },
+    {
       "name": "otel-collector-endpoint-tls-insecure",
       "description": "Allow insecure connections to the OpenTelemetry collector",
+      "isOps": true,
+      "boolField": {}
+    },
+    {
+      "name": "otel-tracing-disabled",
+      "description": "Disable OpenTelemetry tracing",
       "isOps": true,
       "boolField": {}
     },
@@ -62,10 +59,23 @@
       "boolField": {}
     },
     {
-      "name": "otel-tracing-disabled",
-      "description": "Disable OpenTelemetry tracing",
-      "isOps": true,
-      "boolField": {}
+      "name": "miro-access-token",
+      "displayName": "Miro Access Token",
+      "description": "Miro access token. This is used to authenticate with the Miro API and sync users, teams and roles. Assign team to user and unassign user from team.",
+      "isRequired": true,
+      "isSecret": true,
+      "stringField": {
+        "rules": {
+          "isRequired": true
+        }
+      }
+    },
+    {
+      "name": "miro-scim-access-token",
+      "displayName": "Miro SCIM Access Token",
+      "description": "Miro SCIM access token. This is used to authenticate with the Miro SCIM API and create users. Assign role to user and revoke role from user.",
+      "isSecret": true,
+      "stringField": {}
     }
   ],
   "displayName": "Miro",
