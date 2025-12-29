@@ -1,5 +1,3 @@
-//go:build !generate
-
 package main
 
 import (
@@ -49,8 +47,9 @@ func getConnector(ctx context.Context, config *cfg.Miro) (types.ConnectorServer,
 		return nil, err
 	}
 
-	cb, err := connector.New(ctx, config.AccessToken, config.ScimAccessToken)
+	cb, err := connector.New(ctx, config.MiroAccessToken, config.MiroScimAccessToken)
 	if err != nil {
+		l.Error("error creating connector", zap.Error(err))
 		return nil, err
 	}
 	connector, err := connectorbuilder.NewConnector(ctx, cb)

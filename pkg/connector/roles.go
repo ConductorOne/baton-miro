@@ -36,9 +36,8 @@ var roleDefinitions = map[string]roleDefinition{
 
 // roleBuilder is the builder for the role resource type.
 type roleBuilder struct {
-	client         *miro.Client
-	resourceType   *v2.ResourceType
-	organizationId string
+	client       *miro.Client
+	resourceType *v2.ResourceType
 }
 
 // ResourceType returns the resource type for the role builder.
@@ -50,7 +49,7 @@ func (r *roleBuilder) ResourceType(ctx context.Context) *v2.ResourceType {
 func (r *roleBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId, pToken *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
 	var resources []*v2.Resource
 	for _, role := range roleDefinitions {
-		profile := map[string]interface{}{
+		profile := map[string]any{
 			"role_id":   role.ID,
 			"role_name": role.DisplayName,
 		}

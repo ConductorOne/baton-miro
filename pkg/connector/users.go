@@ -35,7 +35,7 @@ func (o *userBuilder) ResourceType(ctx context.Context) *v2.ResourceType {
 }
 
 func userResource(user *miro.User) (*v2.Resource, error) {
-	profile := map[string]interface{}{
+	profile := map[string]any{
 		"email":   user.Email,
 		"login":   user.Email,
 		"license": user.License,
@@ -102,7 +102,7 @@ func (o *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId,
 		return nil, "", annos, wrapError(err, "failed to create next page cursor")
 	}
 
-	return resources, nextCursor, nil, nil
+	return resources, nextCursor, annos, nil
 }
 
 // Entitlements always returns an empty slice for users.

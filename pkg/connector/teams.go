@@ -44,7 +44,7 @@ func (o *teamBuilder) ResourceType(ctx context.Context) *v2.ResourceType {
 }
 
 func teamResource(team *miro.Team) (*v2.Resource, error) {
-	profile := map[string]interface{}{
+	profile := map[string]any{
 		"name": team.Name,
 		"id":   team.Id,
 	}
@@ -98,10 +98,10 @@ func (g *teamBuilder) List(ctx context.Context, _ *v2.ResourceId, pagination *pa
 
 	nextCursor, err := handleNextPage(bag, response.Cursor)
 	if err != nil {
-		return nil, "", nil, wrapError(err, "failed to create next page cursor")
+		return nil, "", annos, wrapError(err, "failed to create next page cursor")
 	}
 
-	return resources, nextCursor, nil, nil
+	return resources, nextCursor, annos, nil
 }
 
 // Entitlements returns the entitlements for a team.
@@ -157,7 +157,7 @@ func (o *teamBuilder) Grants(ctx context.Context, resource *v2.Resource, paginat
 		return nil, "", annos, wrapError(err, "failed to create next page cursor")
 	}
 
-	return grants, nextCursor, nil, nil
+	return grants, nextCursor, annos, nil
 }
 
 // Grant invites a user to a team.
