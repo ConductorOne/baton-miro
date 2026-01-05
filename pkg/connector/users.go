@@ -56,6 +56,7 @@ func userResource(user *miro.User) (*v2.Resource, error) {
 	userTraits := []rs.UserTraitOption{
 		rs.WithUserProfile(profile),
 		rs.WithUserLogin(user.Email),
+		rs.WithEmail(user.Email, true),
 		rs.WithStatus(status),
 	}
 	if lastLogin != nil {
