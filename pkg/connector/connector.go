@@ -81,7 +81,7 @@ func (c *Connector) Validate(ctx context.Context) (annotations.Annotations, erro
 }
 
 // New returns a new instance of the connector.
-func New(ctx context.Context, accessToken string, scimAccessToken string) (*Connector, error) {
+func New(ctx context.Context, accessToken string, scimAccessToken string, baseURL string) (*Connector, error) {
 	httpClient, err := uhttp.NewBearerAuth(accessToken).GetClient(ctx)
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func New(ctx context.Context, accessToken string, scimAccessToken string) (*Conn
 		}
 	}
 
-	client := miro.New(httpClient, scimClient)
+	client := miro.New(httpClient, scimClient, baseURL)
 
 	context, _, err := client.GetContext(ctx)
 	if err != nil {

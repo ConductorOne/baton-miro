@@ -18,7 +18,12 @@ var (
 		field.WithDisplayName("Miro SCIM Access Token"),
 		field.WithIsSecret(true),
 	)
-	ConfigurationFields = []field.SchemaField{MiroAccessToken, MiroScimAccessToken}
+	BaseURLField = field.StringField(
+		"base-url",
+		field.WithDisplayName("Base URL"),
+		field.WithDescription("Override the Miro API URL (for testing or enterprise deployments)"),
+	)
+	ConfigurationFields = []field.SchemaField{MiroAccessToken, MiroScimAccessToken, BaseURLField}
 )
 
 //go:generate go run ./gen

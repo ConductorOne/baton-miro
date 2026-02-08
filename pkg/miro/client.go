@@ -14,20 +14,25 @@ import (
 )
 
 const (
-	BaseUrl     = "https://api.miro.com"
-	ScimBaseUrl = "https://miro.com/api/v1/scim/"
+	DefaultBaseUrl = "https://api.miro.com"
+	ScimBaseUrl    = "https://miro.com/api/v1/scim/"
 )
 
 // Client is the Miro client.
 type Client struct {
 	httpClient *uhttp.BaseHttpClient
 	scimClient *uhttp.BaseHttpClient
+	baseURL    string
 }
 
 // New creates a new Miro client.
-func New(httpClient *http.Client, scimClient *http.Client) *Client {
+func New(httpClient *http.Client, scimClient *http.Client, baseURL string) *Client {
+	if baseURL == "" {
+		baseURL = DefaultBaseUrl
+	}
 	c := &Client{
 		httpClient: uhttp.NewBaseHttpClient(httpClient),
+		baseURL:    baseURL,
 	}
 
 	if scimClient != nil {
@@ -52,7 +57,7 @@ func (c *Client) doRequest(
 		reqOptions = append(reqOptions, uhttp.WithJSONBody(body))
 	}
 
-	baseUrl, err := url.Parse(BaseUrl)
+	baseUrl, err := url.Parse(c.baseURL)
 	if err != nil {
 		return nil, nil, err
 	}
