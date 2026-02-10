@@ -1,6 +1,6 @@
 ![Baton Logo](./baton-logo.png)
 
-# `baton-miro` [![Go Reference](https://pkg.go.dev/badge/github.com/conductorone/baton-miro.svg)](https://pkg.go.dev/github.com/conductorone/baton-miro) ![main ci](https://github.com/conductorone/baton-miro/actions/workflows/main.yaml/badge.svg)
+# `baton-miro` [![Go Reference](https://pkg.go.dev/badge/github.com/conductorone/baton-miro.svg)](https://pkg.go.dev/github.com/conductorone/baton-miro) ![ci](https://github.com/conductorone/baton-miro/actions/workflows/ci.yaml/badge.svg) ![verify](https://github.com/conductorone/baton-miro/actions/workflows/verify.yaml/badge.svg)
 
 `baton-miro` is a connector for Baton built using the [Baton SDK](https://github.com/conductorone/baton-sdk).
 
