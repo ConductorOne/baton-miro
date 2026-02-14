@@ -22,6 +22,7 @@ var (
 		"base-url",
 		field.WithDisplayName("Base URL"),
 		field.WithDescription("Override the Miro API URL (for testing or enterprise deployments)"),
+		field.WithHidden(true),
 	)
 	ConfigurationFields = []field.SchemaField{MiroAccessToken, MiroScimAccessToken, BaseURLField}
 )
