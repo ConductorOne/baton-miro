@@ -47,7 +47,7 @@ func getConnector(ctx context.Context, config *cfg.Miro) (types.ConnectorServer,
 		return nil, err
 	}
 
-	cb, err := connector.New(ctx, config.MiroAccessToken, config.MiroScimAccessToken)
+	cb, err := connector.New(ctx, config.MiroAccessToken, config.MiroScimAccessToken, config.BaseUrl)
 	if err != nil {
 		l.Error("error creating connector", zap.Error(err))
 		return nil, err
