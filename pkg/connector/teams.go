@@ -49,10 +49,8 @@ func teamResource(team *miro.Team) (*v2.Resource, error) {
 		"id":   team.Id,
 	}
 
-	teamTraitOptions := []rs.GroupTraitOption{
-		rs.WithGroupProfile(profile),
-	}
-	resource, err := rs.NewGroupResource(team.Name, teamResourceType, team.Id, teamTraitOptions)
+	teamTraitOptions := []rs.GroupTraitOption{}
+	resource, err := rs.NewGroupResource(team.Name, teamResourceType, team.Id, teamTraitOptions, rs.WithResourceProfile(profile))
 	if err != nil {
 		return nil, err
 	}

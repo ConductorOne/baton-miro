@@ -54,16 +54,21 @@ func userResource(user *miro.User) (*v2.Resource, error) {
 	}
 
 	userTraits := []rs.UserTraitOption{
-		rs.WithUserProfile(profile),
 		rs.WithUserLogin(user.Email),
 		rs.WithEmail(user.Email, true),
-		rs.WithStatus(status),
 	}
 	if lastLogin != nil {
 		userTraits = append(userTraits, rs.WithLastLogin(*lastLogin))
 	}
 
-	resource, err := rs.NewUserResource(user.Email, userResourceType, user.Id, userTraits)
+	resource, err := rs.NewUserResource(
+		user.Email,
+		userResourceType,
+		user.Id,
+		userTraits,
+		rs.WithResourceProfile(profile),
+		rs.WithResourceStatus(v2.Status_ResourceStatus(status), ""),
+	)
 	if err != nil {
 		return nil, err
 	}
