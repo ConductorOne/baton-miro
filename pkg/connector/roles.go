@@ -57,7 +57,8 @@ func (r *roleBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId,
 			role.DisplayName,
 			r.resourceType,
 			role.ID,
-			[]resource.RoleTraitOption{resource.WithRoleProfile(profile)},
+			[]resource.RoleTraitOption{},
+			resource.WithResourceProfile(profile),
 		)
 		if err != nil {
 			return nil, "", nil, fmt.Errorf("failed to create role resource: %w", err)
