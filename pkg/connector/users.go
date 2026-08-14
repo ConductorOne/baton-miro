@@ -8,7 +8,6 @@ import (
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
-	"github.com/conductorone/baton-sdk/pkg/pagination"
 	grant "github.com/conductorone/baton-sdk/pkg/types/grant"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
 )
@@ -19,7 +18,7 @@ type userBuilder struct {
 	organizationId string
 }
 
-var _ connectorbuilder.AccountManager = &userBuilder{}
+var _ connectorbuilder.AccountManagerV2 = &userBuilder{}
 
 func (b *userBuilder) CreateAccountCapabilityDetails(_ context.Context) (*v2.CredentialDetailsAccountProvisioning, annotations.Annotations, error) {
 	return &v2.CredentialDetailsAccountProvisioning{
@@ -78,61 +77,61 @@ func userResource(user *miro.User) (*v2.Resource, error) {
 
 // List returns all the users from the database as resource objects.
 // Users include a UserTrait because they are the 'shape' of a standard user.
-func (o *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId, pToken *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
-	bag, cursor, err := parsePageToken(pToken.Token, &v2.ResourceId{ResourceType: o.resourceType.Id})
+func (o *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId, pToken rs.SyncOpAttrs) ([]*v2.Resource, *rs.SyncOpResults, error) {
+	bag, cursor, err := parsePageToken(pToken.PageToken.Token, &v2.ResourceId{ResourceType: o.resourceType.Id})
 	if err != nil {
-		return nil, "", nil, wrapError(err, "failed to parse page token")
+		return nil, nil, wrapError(err, "failed to parse page token")
 	}
 
 	response, annos, err := o.client.GetOrganizationMembers(ctx, o.organizationId, cursor, resourcePageSize)
 	if err != nil {
-		return nil, "", annos, wrapError(err, "failed to get users")
+		return nil, &rs.SyncOpResults{Annotations: annos}, wrapError(err, "failed to get users")
 	}
 
 	var resources []*v2.Resource
 	for _, user := range response.Data {
 		resource, err := userResource(&user)
 		if err != nil {
-			return nil, "", annos, wrapError(err, "failed to create user resource")
+			return nil, &rs.SyncOpResults{Annotations: annos}, wrapError(err, "failed to create user resource")
 		}
 
 		resources = append(resources, resource)
 	}
 
 	if response.Cursor == "" {
-		return resources, "", annos, nil
+		return resources, &rs.SyncOpResults{Annotations: annos}, nil
 	}
 
 	nextCursor, err := handleNextPage(bag, response.Cursor)
 	if err != nil {
-		return nil, "", annos, wrapError(err, "failed to create next page cursor")
+		return nil, &rs.SyncOpResults{Annotations: annos}, wrapError(err, "failed to create next page cursor")
 	}
 
-	return resources, nextCursor, annos, nil
+	return resources, &rs.SyncOpResults{NextPageToken: nextCursor, Annotations: annos}, nil
 }
 
 // Entitlements always returns an empty slice for users.
-func (o *userBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
-	return nil, "", nil, nil
+func (o *userBuilder) Entitlements(_ context.Context, res *v2.Resource, _ rs.SyncOpAttrs) ([]*v2.Entitlement, *rs.SyncOpResults, error) {
+	return nil, nil, nil
 }
 
 // Grants returns role grants for users.
-func (o *userBuilder) Grants(ctx context.Context, resource *v2.Resource, pToken *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
+func (o *userBuilder) Grants(ctx context.Context, res *v2.Resource, pToken rs.SyncOpAttrs) ([]*v2.Grant, *rs.SyncOpResults, error) {
 	var grants []*v2.Grant
 
-	user, annos, err := o.client.GetOrganizationMember(ctx, o.organizationId, resource.Id.Resource)
+	user, annos, err := o.client.GetOrganizationMember(ctx, o.organizationId, res.Id.Resource)
 	if err != nil {
-		return nil, "", annos, wrapError(err, "failed to get user")
+		return nil, &rs.SyncOpResults{Annotations: annos}, wrapError(err, "failed to get user")
 	}
 
-	roleGrants, err := o.roleGrants(user, resource)
+	roleGrants, err := o.roleGrants(user, res)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	} else if roleGrants != nil {
 		grants = append(grants, roleGrants)
 	}
 
-	return grants, "", annos, nil
+	return grants, &rs.SyncOpResults{Annotations: annos}, nil
 }
 
 // CreateAccount creates a new user in Miro using the SCIM API.

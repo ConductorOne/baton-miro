@@ -5,9 +5,11 @@ import (
 	"io"
 	"net/http"
 
+	cfgpkg "github.com/conductorone/baton-miro/pkg/config"
 	"github.com/conductorone/baton-miro/pkg/miro"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
+	sdkcli "github.com/conductorone/baton-sdk/pkg/cli"
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
 	"github.com/conductorone/baton-sdk/pkg/uhttp"
 )
@@ -18,8 +20,8 @@ type Connector struct {
 }
 
 // ResourceSyncers returns a ResourceSyncer for each resource type that should be synced from the upstream service.
-func (c *Connector) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncer {
-	return []connectorbuilder.ResourceSyncer{
+func (c *Connector) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncerV2 {
+	return []connectorbuilder.ResourceSyncerV2{
 		newUserBuilder(c.Client, c.OrganizationId),
 		newTeamBuilder(c.Client, c.OrganizationId),
 		newRoleBuilder(c.Client),
@@ -81,17 +83,24 @@ func (c *Connector) Validate(ctx context.Context) (annotations.Annotations, erro
 }
 
 // New returns a new instance of the connector.
-func New(ctx context.Context, accessToken string, scimAccessToken string, baseURL string) (*Connector, error) {
+// New returns a new instance of the connector.
+//
+// The *cli.ConnectorOpts parameter is part of the V2 entrypoint contract; it
+// carries runtime options such as the sync resource-type filter. It is accepted
+// but not yet read here.
+func New(ctx context.Context, cfg *cfgpkg.Miro, _ *sdkcli.ConnectorOpts) (connectorbuilder.ConnectorBuilderV2, []connectorbuilder.Opt, error) {
+	accessToken, scimAccessToken, baseURL := cfg.MiroAccessToken, cfg.MiroScimAccessToken, cfg.BaseUrl
+
 	httpClient, err := uhttp.NewBearerAuth(accessToken).GetClient(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var scimClient *http.Client
 	if scimAccessToken != "" {
 		scimClient, err = uhttp.NewBearerAuth(scimAccessToken).GetClient(ctx)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
@@ -99,11 +108,11 @@ func New(ctx context.Context, accessToken string, scimAccessToken string, baseUR
 
 	context, _, err := client.GetContext(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	return &Connector{
 		Client:         client,
 		OrganizationId: context.Organization.Id,
-	}, nil
+	}, nil, nil
 }

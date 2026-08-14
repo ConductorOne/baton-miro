@@ -6,5 +6,5 @@ import (
 )
 
 func main() {
-	config.Generate("miro", cfg.Config)
+	config.Generate("miro", cfg.Configuration)
 }

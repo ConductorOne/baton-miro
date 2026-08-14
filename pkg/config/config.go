@@ -30,7 +30,7 @@ var (
 
 //go:generate go run ./gen
 var (
-	Config = field.NewConfiguration(
+	Configuration = field.NewConfiguration(
 		ConfigurationFields,
 		field.WithConnectorDisplayName("Miro"),
 		field.WithHelpUrl("/docs/baton/miro"),

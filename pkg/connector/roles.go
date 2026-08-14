@@ -8,7 +8,6 @@ import (
 	"github.com/conductorone/baton-miro/pkg/miro"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
-	"github.com/conductorone/baton-sdk/pkg/pagination"
 	"github.com/conductorone/baton-sdk/pkg/types/entitlement"
 	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	"github.com/conductorone/baton-sdk/pkg/types/resource"
@@ -46,7 +45,7 @@ func (r *roleBuilder) ResourceType(ctx context.Context) *v2.ResourceType {
 }
 
 // List returns the resources for the role builder.
-func (r *roleBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId, pToken *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
+func (r *roleBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId, pToken resource.SyncOpAttrs) ([]*v2.Resource, *resource.SyncOpResults, error) {
 	var resources []*v2.Resource
 	for _, role := range roleDefinitions {
 		profile := map[string]any{
@@ -61,32 +60,32 @@ func (r *roleBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId,
 			resource.WithResourceProfile(profile),
 		)
 		if err != nil {
-			return nil, "", nil, fmt.Errorf("failed to create role resource: %w", err)
+			return nil, nil, fmt.Errorf("failed to create role resource: %w", err)
 		}
 		resources = append(resources, roleResource)
 	}
-	return resources, "", nil, nil
+	return resources, &resource.SyncOpResults{}, nil
 }
 
 // Entitlements returns the entitlements for the role builder.
-func (r *roleBuilder) Entitlements(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
+func (r *roleBuilder) Entitlements(ctx context.Context, res *v2.Resource, _ resource.SyncOpAttrs) ([]*v2.Entitlement, *resource.SyncOpResults, error) {
 	var rv []*v2.Entitlement
 
 	assigmentOptions := []entitlement.EntitlementOption{
 		entitlement.WithGrantableTo(userResourceType),
-		entitlement.WithDescription(fmt.Sprintf("Has %s organization role", resource.DisplayName)),
-		entitlement.WithDisplayName(fmt.Sprintf("%s organization role %s", resource.DisplayName, assignedRole)),
+		entitlement.WithDescription(fmt.Sprintf("Has %s organization role", res.DisplayName)),
+		entitlement.WithDisplayName(fmt.Sprintf("%s organization role %s", res.DisplayName, assignedRole)),
 	}
 
-	entitlement := entitlement.NewAssignmentEntitlement(resource, assignedRole, assigmentOptions...)
+	entitlement := entitlement.NewAssignmentEntitlement(res, assignedRole, assigmentOptions...)
 	rv = append(rv, entitlement)
 
-	return rv, "", nil, nil
+	return rv, &resource.SyncOpResults{}, nil
 }
 
 // Grants returns empty grants - role grants are now emitted from user resources.
-func (r *roleBuilder) Grants(ctx context.Context, resource *v2.Resource, pToken *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	return nil, "", nil, nil
+func (r *roleBuilder) Grants(ctx context.Context, res *v2.Resource, pToken resource.SyncOpAttrs) ([]*v2.Grant, *resource.SyncOpResults, error) {
+	return nil, nil, nil
 }
 
 // Grant grants a role to a principal.
