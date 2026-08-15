@@ -8,7 +8,6 @@ import (
 	"github.com/conductorone/baton-miro/pkg/miro"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
-	"github.com/conductorone/baton-sdk/pkg/pagination"
 	ent "github.com/conductorone/baton-sdk/pkg/types/entitlement"
 	grant "github.com/conductorone/baton-sdk/pkg/types/grant"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
@@ -68,15 +67,15 @@ func newTeamBuilder(client *miro.Client, organizationId string) *teamBuilder {
 }
 
 // List returns the teams for an organization.
-func (g *teamBuilder) List(ctx context.Context, _ *v2.ResourceId, pagination *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
-	bag, cursor, err := parsePageToken(pagination.Token, &v2.ResourceId{ResourceType: g.resourceType.Id})
+func (g *teamBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken rs.SyncOpAttrs) ([]*v2.Resource, *rs.SyncOpResults, error) {
+	bag, cursor, err := parsePageToken(pToken.PageToken.Token, &v2.ResourceId{ResourceType: g.resourceType.Id})
 	if err != nil {
-		return nil, "", nil, wrapError(err, "failed to parse page token")
+		return nil, nil, wrapError(err, "failed to parse page token")
 	}
 
 	response, annos, err := g.client.GetTeams(ctx, g.organizationId, cursor, resourcePageSize)
 	if err != nil {
-		return nil, "", annos, wrapError(err, "failed to get teams")
+		return nil, &rs.SyncOpResults{Annotations: annos}, wrapError(err, "failed to get teams")
 	}
 
 	var resources []*v2.Resource
@@ -84,57 +83,57 @@ func (g *teamBuilder) List(ctx context.Context, _ *v2.ResourceId, pagination *pa
 		team := team
 		resource, err := teamResource(&team)
 		if err != nil {
-			return nil, "", annos, wrapError(err, "failed to create team resource")
+			return nil, &rs.SyncOpResults{Annotations: annos}, wrapError(err, "failed to create team resource")
 		}
 
 		resources = append(resources, resource)
 	}
 
 	if response.Cursor == "" {
-		return resources, "", annos, nil
+		return resources, &rs.SyncOpResults{Annotations: annos}, nil
 	}
 
 	nextCursor, err := handleNextPage(bag, response.Cursor)
 	if err != nil {
-		return nil, "", annos, wrapError(err, "failed to create next page cursor")
+		return nil, &rs.SyncOpResults{Annotations: annos}, wrapError(err, "failed to create next page cursor")
 	}
 
-	return resources, nextCursor, annos, nil
+	return resources, &rs.SyncOpResults{NextPageToken: nextCursor, Annotations: annos}, nil
 }
 
 // Entitlements returns the entitlements for a team.
-func (o *teamBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
+func (o *teamBuilder) Entitlements(_ context.Context, res *v2.Resource, _ rs.SyncOpAttrs) ([]*v2.Entitlement, *rs.SyncOpResults, error) {
 	var rv []*v2.Entitlement
 
 	for _, role := range teamRoles {
 		assigmentOptions := []ent.EntitlementOption{
 			ent.WithGrantableTo(userResourceType),
-			ent.WithDescription(fmt.Sprintf("Has %s team role", resource.DisplayName)),
-			ent.WithDisplayName(fmt.Sprintf("%s team role %s", resource.DisplayName, role)),
+			ent.WithDescription(fmt.Sprintf("Has %s team role", res.DisplayName)),
+			ent.WithDisplayName(fmt.Sprintf("%s team role %s", res.DisplayName, role)),
 		}
 
-		entitlement := ent.NewAssignmentEntitlement(resource, role, assigmentOptions...)
+		entitlement := ent.NewAssignmentEntitlement(res, role, assigmentOptions...)
 		rv = append(rv, entitlement)
 	}
 
-	return rv, "", nil, nil
+	return rv, &rs.SyncOpResults{}, nil
 }
 
 // Grants always returns an empty slice for users since they don't have any entitlements.
-func (o *teamBuilder) Grants(ctx context.Context, resource *v2.Resource, pagination *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	bag, cursor, err := parsePageToken(pagination.Token, &v2.ResourceId{ResourceType: o.resourceType.Id})
+func (o *teamBuilder) Grants(ctx context.Context, res *v2.Resource, pToken rs.SyncOpAttrs) ([]*v2.Grant, *rs.SyncOpResults, error) {
+	bag, cursor, err := parsePageToken(pToken.PageToken.Token, &v2.ResourceId{ResourceType: o.resourceType.Id})
 	if err != nil {
-		return nil, "", nil, wrapError(err, "failed to parse page token")
+		return nil, nil, wrapError(err, "failed to parse page token")
 	}
 
-	response, annos, err := o.client.GetTeamMembers(ctx, o.organizationId, resource.Id.Resource, cursor, resourcePageSize)
+	response, annos, err := o.client.GetTeamMembers(ctx, o.organizationId, res.Id.Resource, cursor, resourcePageSize)
 	if err != nil {
-		return nil, "", annos, wrapError(err, "failed to get team members")
+		return nil, &rs.SyncOpResults{Annotations: annos}, wrapError(err, "failed to get team members")
 	}
 	var grants []*v2.Grant
 	for _, member := range response.Data {
 		if !contains(teamRoles, member.Role) {
-			return nil, "", annos, wrapError(nil, "user does not have a valid team role")
+			return nil, &rs.SyncOpResults{Annotations: annos}, wrapError(nil, "user does not have a valid team role")
 		}
 
 		userResourceId := &v2.ResourceId{
@@ -142,20 +141,20 @@ func (o *teamBuilder) Grants(ctx context.Context, resource *v2.Resource, paginat
 			Resource:     member.Id,
 		}
 
-		g := grant.NewGrant(resource, member.Role, userResourceId)
+		g := grant.NewGrant(res, member.Role, userResourceId)
 		grants = append(grants, g)
 	}
 
 	if response.Cursor == "" {
-		return grants, "", annos, nil
+		return grants, &rs.SyncOpResults{Annotations: annos}, nil
 	}
 
 	nextCursor, err := handleNextPage(bag, response.Cursor)
 	if err != nil {
-		return nil, "", annos, wrapError(err, "failed to create next page cursor")
+		return nil, &rs.SyncOpResults{Annotations: annos}, wrapError(err, "failed to create next page cursor")
 	}
 
-	return grants, nextCursor, annos, nil
+	return grants, &rs.SyncOpResults{NextPageToken: nextCursor, Annotations: annos}, nil
 }
 
 // Grant invites a user to a team.

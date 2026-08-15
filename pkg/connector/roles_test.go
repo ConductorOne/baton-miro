@@ -2,10 +2,10 @@ package connector
 
 import (
 	"context"
+	"github.com/conductorone/baton-sdk/pkg/types/resource"
 	"testing"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
-	"github.com/conductorone/baton-sdk/pkg/pagination"
 )
 
 // TestRoleDefinitions tests the role definitions.
@@ -58,7 +58,11 @@ func TestRoleBuilder_List(t *testing.T) {
 		resourceType: roleResourceType,
 	}
 
-	resources, nextPage, _, err := builder.List(context.Background(), &v2.ResourceId{}, &pagination.Token{})
+	resources, syncResults, err := builder.List(context.Background(), &v2.ResourceId{}, resource.SyncOpAttrs{})
+	var nextPage string
+	if syncResults != nil {
+		nextPage = syncResults.NextPageToken
+	}
 
 	if err != nil {
 		t.Fatalf("List() error = %v", err)
@@ -94,7 +98,7 @@ func TestRoleBuilder_Entitlements(t *testing.T) {
 		resourceType: roleResourceType,
 	}
 
-	resource := &v2.Resource{
+	res := &v2.Resource{
 		Id: &v2.ResourceId{
 			ResourceType: roleResourceType.Id,
 			Resource:     "organization_internal_admin",
@@ -102,7 +106,11 @@ func TestRoleBuilder_Entitlements(t *testing.T) {
 		DisplayName: "Organization Admin",
 	}
 
-	entitlements, nextPage, _, err := builder.Entitlements(context.Background(), resource, &pagination.Token{})
+	entitlements, syncResults, err := builder.Entitlements(context.Background(), res, resource.SyncOpAttrs{})
+	var nextPage string
+	if syncResults != nil {
+		nextPage = syncResults.NextPageToken
+	}
 
 	if err != nil {
 		t.Fatalf("Entitlements() error = %v", err)
@@ -134,14 +142,18 @@ func TestRoleBuilder_Grants_EmptyResult(t *testing.T) {
 		resourceType: roleResourceType,
 	}
 
-	resource := &v2.Resource{
+	res := &v2.Resource{
 		Id: &v2.ResourceId{
 			ResourceType: roleResourceType.Id,
 			Resource:     "organization_internal_admin",
 		},
 	}
 
-	grants, nextPage, _, err := builder.Grants(context.Background(), resource, &pagination.Token{})
+	grants, syncResults, err := builder.Grants(context.Background(), res, resource.SyncOpAttrs{})
+	var nextPage string
+	if syncResults != nil {
+		nextPage = syncResults.NextPageToken
+	}
 
 	if err != nil {
 		t.Fatalf("Grants() unexpected error: %v", err)
