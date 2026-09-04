@@ -49,7 +49,7 @@ baton resources
 ## docker
 
 ```
-docker run --rm -v $(pwd):/out -e BATON_MIRO_ACCESS_TOKEN=token ghcr.io/conductorone/baton-miro:latest -f "/out/sync.c1z"
+docker run --rm -v $(pwd):/out -e BATON_MIRO_ACCESS_TOKEN=token public.ecr.aws/conductorone/baton-miro:latest -f "/out/sync.c1z"
 docker run --rm -v $(pwd):/out ghcr.io/conductorone/baton:latest -f "/out/sync.c1z" resources
 ```
 
