@@ -22,7 +22,8 @@ jobs:
       - name: Build baton-miro
         run: go build ./cmd/baton-miro
       - name: Get baton
-        uses: ConductorOne/github-workflows/actions/get-baton@v3
+        # Temporary pin to validate the v3 get-baton backport; restore @v3 once the tag floats.
+        uses: ConductorOne/github-workflows/actions/get-baton@jugonzalez/v3-get-baton-from-sdk
       - name: Grant/revoke team test
         uses: ConductorOne/github-workflows/actions/sync-test@v3
         with:
@@ -47,7 +48,8 @@ jobs:
       - name: Build baton-miro
         run: go build ./cmd/baton-miro
       - name: Get baton
-        uses: ConductorOne/github-workflows/actions/get-baton@v3
+        # Temporary pin to validate the v3 get-baton backport; restore @v3 once the tag floats.
+        uses: ConductorOne/github-workflows/actions/get-baton@jugonzalez/v3-get-baton-from-sdk
       - name: Grant/revoke role test
         uses: ConductorOne/github-workflows/actions/sync-test@v3
         with:
