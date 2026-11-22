@@ -163,7 +163,13 @@ func (c *Client) doScimRequestWithOptions(
 
 	resp, err := c.scimClient.Do(req, doOptions...)
 	if err != nil {
-		l.Error("miro-connector: failed to execute request", zap.Error(err))
+		// 4xx responses are caller-handled outcomes (e.g. a uniqueness
+		// conflict); keep error-level logs for transport failures and 5xx.
+		if resp != nil && resp.StatusCode < http.StatusInternalServerError {
+			l.Debug("miro-connector: request returned client error", zap.Int("status_code", resp.StatusCode), zap.Error(err))
+		} else {
+			l.Error("miro-connector: failed to execute request", zap.Error(err))
+		}
 		if resp == nil {
 			return nil, nil, err
 		}

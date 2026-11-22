@@ -202,17 +202,20 @@ func (o *userBuilder) existingAccount(
 	if lower := strings.ToLower(email); lower != email {
 		emails = append(emails, lower)
 	}
-	matches, lookupAnnos, err := o.membersWithEmail(ctx, email, miro.WithEmails(emails))
-	annos = append(annos, lookupAnnos...)
+	matches, _, err := o.membersWithEmail(ctx, email, &annos, 0, miro.WithEmails(emails))
+	truncated := false
 	if err == nil && len(matches) == 0 {
-		matches, lookupAnnos, err = o.membersWithEmail(ctx, email)
-		annos = append(annos, lookupAnnos...)
+		matches, truncated, err = o.membersWithEmail(ctx, email, &annos, maxConflictScanPages)
 	}
 	if err != nil {
 		return nil, nil, annos, wrapError(err, "failed to look up existing miro user after create conflict")
 	}
 
 	switch {
+	case len(matches) == 0 && truncated:
+		return nil, nil, annos, status.Errorf(codes.AlreadyExists,
+			"miro-connector: create user conflict: no organization member matches the requested email in the first %d members scanned",
+			maxConflictScanPages*resourcePageSize)
 	case len(matches) == 0:
 		return nil, nil, annos, status.Error(codes.AlreadyExists, "miro-connector: create user conflict: no organization member matches the requested email")
 	case len(matches) > 1:
@@ -231,21 +234,35 @@ func (o *userBuilder) existingAccount(
 	}, nil, annos, nil
 }
 
+// maxConflictScanPages bounds the unfiltered member scan after a create
+// conflict so one provisioning request cannot walk a very large organization.
+const maxConflictScanPages = 100
+
 // membersWithEmail pages through organization members and returns those whose
-// email equals the given one case-insensitively, deduplicated by ID.
-func (o *userBuilder) membersWithEmail(ctx context.Context, email string, opts ...miro.ReqOpt) ([]miro.User, annotations.Annotations, error) {
+// email equals the given one case-insensitively, deduplicated by ID. It stops
+// after maxPages pages when maxPages > 0 and reports whether it was truncated.
+// Each response's rate-limit data replaces the previous one in annos.
+func (o *userBuilder) membersWithEmail(
+	ctx context.Context,
+	email string,
+	annos *annotations.Annotations,
+	maxPages int,
+	opts ...miro.ReqOpt,
+) ([]miro.User, bool, error) {
 	opts = append(opts, miro.WithNoCache())
 	var (
 		matches []miro.User
-		annos   annotations.Annotations
 		seen    = map[string]bool{}
 		cursor  string
 	)
-	for {
+	for pages := 0; ; pages++ {
+		if maxPages > 0 && pages >= maxPages {
+			return matches, true, nil
+		}
 		page, pageAnnos, err := o.client.GetOrganizationMembers(ctx, o.organizationId, cursor, resourcePageSize, opts...)
-		annos = append(annos, pageAnnos...)
+		updateRateLimit(annos, pageAnnos)
 		if err != nil {
-			return nil, annos, err
+			return nil, false, err
 		}
 		for _, member := range page.Data {
 			if !strings.EqualFold(member.Email, email) || seen[member.Id] {
@@ -255,9 +272,18 @@ func (o *userBuilder) membersWithEmail(ctx context.Context, email string, opts .
 			matches = append(matches, member)
 		}
 		if page.Cursor == "" || page.Cursor == cursor {
-			return matches, annos, nil
+			return matches, false, nil
 		}
 		cursor = page.Cursor
+	}
+}
+
+// updateRateLimit replaces the rate-limit annotation in dst with the one in
+// src, if any, so callers see the most recent response's limits.
+func updateRateLimit(dst *annotations.Annotations, src annotations.Annotations) {
+	rl := &v2.RateLimitDescription{}
+	if ok, err := src.Pick(rl); err == nil && ok {
+		dst.Update(rl)
 	}
 }
 

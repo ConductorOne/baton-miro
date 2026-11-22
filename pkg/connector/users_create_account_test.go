@@ -75,6 +75,8 @@ func (f *fakeMiro) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Cache-Control") != "no-cache" && f.createCalls > 0 {
 			f.cachedLookup = true
 		}
+		w.Header().Set("X-Ratelimit-Limit", "100")
+		w.Header().Set("X-Ratelimit-Remaining", "7")
 		if f.membersFail != 0 {
 			w.WriteHeader(f.membersFail)
 			_, _ = io.WriteString(w, `{"status":500,"code":"internalError","message":"boom"}`)
@@ -188,9 +190,19 @@ func TestCreateAccountConflictReturnsExistingAccount(t *testing.T) {
 	b := newCreateAccountTestBuilder(t, f)
 
 	// Requested with different casing than Miro stores.
-	resp, plaintext, _, err := b.CreateAccount(context.Background(), createAccountInfo(t, "Jane.Doe@Example.com"), nil)
+	resp, plaintext, annos, err := b.CreateAccount(context.Background(), createAccountInfo(t, "Jane.Doe@Example.com"), nil)
 	if err != nil {
 		t.Fatalf("CreateAccount() error = %v", err)
+	}
+	rateLimits := 0
+	for _, a := range annos {
+		if a.MessageIs(&v2.RateLimitDescription{}) {
+			rateLimits++
+		}
+	}
+	rl := &v2.RateLimitDescription{}
+	if ok, aerr := annos.Pick(rl); aerr != nil || !ok || rateLimits != 1 || rl.GetRemaining() != 7 {
+		t.Fatalf("want one rate-limit annotation from the latest lookup (remaining 7), got %d (remaining %d)", rateLimits, rl.GetRemaining())
 	}
 	if len(plaintext) != 0 {
 		t.Fatalf("CreateAccount() returned %d plaintext credentials for an account it did not create", len(plaintext))
@@ -260,6 +272,34 @@ func TestCreateAccountConflictFallsBackToCaseInsensitiveScan(t *testing.T) {
 				t.Fatalf("AlreadyExistsResult resource differs from synced resource:\n got: %v\nwant: %v", result.GetResource(), want)
 			}
 		})
+	}
+}
+
+func TestCreateAccountConflictScanIsBounded(t *testing.T) {
+	members := make([]miro.User, maxConflictScanPages+2)
+	for i := range members {
+		members[i] = existingMember
+		members[i].Id = "member-" + strconv.Itoa(i)
+		members[i].Email = "member" + strconv.Itoa(i) + "@example.com"
+	}
+	// The fake serves one member per page, so this one sits past the cap.
+	members[len(members)-1].Email = "Jane.Doe@Example.com"
+
+	f := &fakeMiro{createStatus: http.StatusConflict, createBody: scimUniqueness, members: members}
+	b := newCreateAccountTestBuilder(t, f)
+
+	resp, _, _, err := b.CreateAccount(context.Background(), createAccountInfo(t, "jane.doe@example.com"), nil)
+	if err == nil || resp != nil {
+		t.Fatalf("CreateAccount() = %v, %v; want bounded no-match error", resp, err)
+	}
+	if got := status.Code(err); got != codes.AlreadyExists {
+		t.Fatalf("status code = %v, want AlreadyExists (err: %v)", got, err)
+	}
+	if !strings.Contains(err.Error(), "members scanned") {
+		t.Fatalf("error %q does not mention the bounded scan", err)
+	}
+	if f.fullScans != maxConflictScanPages {
+		t.Fatalf("scan pages = %d, want %d", f.fullScans, maxConflictScanPages)
 	}
 }
 
