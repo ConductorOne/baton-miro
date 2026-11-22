@@ -2,10 +2,40 @@ package miro
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/conductorone/baton-sdk/pkg/annotations"
+	"github.com/conductorone/baton-sdk/pkg/uhttp"
 )
+
+// ErrUserAlreadyExists marks a SCIM user creation that Miro rejected because
+// the user already exists.
+var ErrUserAlreadyExists = errors.New("miro user already exists")
+
+// isScimUniquenessConflict reports whether resp is the SCIM uniqueness
+// conflict for a POST /Users (RFC 7644 section 3.3): HTTP 409 with a SCIM
+// error body whose scimType is "uniqueness", or whose scimType is omitted
+// but whose status is "409".
+func isScimUniquenessConflict(resp *uhttp.WrapperResponse) bool {
+	if resp.StatusCode != http.StatusConflict {
+		return false
+	}
+	var scimErr SCIMError
+	if err := json.Unmarshal(resp.Body, &scimErr); err != nil {
+		return false
+	}
+	switch scimErr.ScimType {
+	case "uniqueness":
+		return true
+	case "":
+		return scimErr.Status == "409"
+	default:
+		return false
+	}
+}
 
 // UsersUrl is the URL for the Users endpoint.
 const (
@@ -29,8 +59,16 @@ func (c *Client) CreateUser(ctx context.Context, email string, firstName string,
 	}
 
 	var userResponse User
-	_, annos, err := c.doScimRequest(ctx, createUserUrl.String(), http.MethodPost, &userResponse, createUserReq)
+	var conflict bool
+	detectConflict := func(resp *uhttp.WrapperResponse) error {
+		conflict = isScimUniquenessConflict(resp)
+		return nil
+	}
+	_, annos, err := c.doScimRequestWithOptions(ctx, createUserUrl.String(), http.MethodPost, &userResponse, createUserReq, []uhttp.DoOption{detectConflict})
 	if err != nil {
+		if conflict {
+			return nil, annos, fmt.Errorf("%w: %w", ErrUserAlreadyExists, err)
+		}
 		return nil, annos, err
 	}
 

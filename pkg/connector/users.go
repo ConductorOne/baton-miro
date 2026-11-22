@@ -2,7 +2,9 @@ package connector
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/conductorone/baton-miro/pkg/miro"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
@@ -10,6 +12,8 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
 	grant "github.com/conductorone/baton-sdk/pkg/types/grant"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type userBuilder struct {
@@ -158,8 +162,12 @@ func (o *userBuilder) CreateAccount(
 		}
 	}
 
-	newUser, annos, err := o.client.CreateUser(ctx, profile["email"].(string), profile["first_name"].(string), profile["last_name"].(string))
+	email := profile["email"].(string)
+	newUser, annos, err := o.client.CreateUser(ctx, email, profile["first_name"].(string), profile["last_name"].(string))
 	if err != nil {
+		if errors.Is(err, miro.ErrUserAlreadyExists) {
+			return o.existingAccount(ctx, email, annos)
+		}
 		return nil, nil, annos, wrapError(err, "failed to create miro user")
 	}
 
@@ -169,6 +177,68 @@ func (o *userBuilder) CreateAccount(
 	}
 
 	return &v2.CreateAccountResponse_SuccessResult{
+		Resource: resource,
+	}, nil, annos, nil
+}
+
+// existingAccount resolves a SCIM uniqueness conflict to the organization
+// member that List emits for the requested email, so the caller can bind it.
+// It only reads: the existing user is never re-invited or modified, and no
+// credentials are returned for an account this connector did not create.
+func (o *userBuilder) existingAccount(
+	ctx context.Context,
+	email string,
+	annos annotations.Annotations,
+) (
+	connectorbuilder.CreateAccountResponse,
+	[]*v2.PlaintextData,
+	annotations.Annotations,
+	error,
+) {
+	// The provider's emails filter is an exact match; also ask for the
+	// lowercase form so a casing difference in the request still finds the
+	// stored address. Matching below is case-insensitive either way.
+	emails := []string{email}
+	if lower := strings.ToLower(email); lower != email {
+		emails = append(emails, lower)
+	}
+
+	var match *miro.User
+	cursor := ""
+	for {
+		page, pageAnnos, err := o.client.GetOrganizationMembers(ctx, o.organizationId, cursor, resourcePageSize, miro.WithEmails(emails))
+		annos = append(annos, pageAnnos...)
+		if err != nil {
+			return nil, nil, annos, wrapError(err, "failed to look up existing miro user after create conflict")
+		}
+		for i := range page.Data {
+			if !strings.EqualFold(page.Data[i].Email, email) {
+				continue
+			}
+			if match != nil && match.Id != page.Data[i].Id {
+				return nil, nil, annos, status.Error(codes.AlreadyExists, "miro-connector: create user conflict: multiple organization members match the requested email")
+			}
+			match = &page.Data[i]
+		}
+		if page.Cursor == "" || page.Cursor == cursor {
+			break
+		}
+		cursor = page.Cursor
+	}
+
+	if match == nil {
+		return nil, nil, annos, status.Error(codes.AlreadyExists, "miro-connector: create user conflict: no organization member matches the requested email")
+	}
+	if match.Id == "" {
+		return nil, nil, annos, status.Error(codes.AlreadyExists, "miro-connector: create user conflict: matching organization member has no ID")
+	}
+
+	resource, err := userResource(match)
+	if err != nil {
+		return nil, nil, annos, wrapError(err, "failed to create user resource from existing miro user")
+	}
+
+	return &v2.CreateAccountResponse_AlreadyExistsResult{
 		Resource: resource,
 	}, nil, annos, nil
 }

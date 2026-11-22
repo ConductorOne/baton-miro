@@ -108,6 +108,20 @@ func (c *Client) doScimRequest(
 	body any,
 	opts ...ReqOpt,
 ) (http.Header, annotations.Annotations, error) {
+	return c.doScimRequestWithOptions(ctx, endpointUrl, method, res, body, nil, opts...)
+}
+
+// doScimRequestWithOptions is doScimRequest with extra response options, which
+// run on every response, including error statuses.
+func (c *Client) doScimRequestWithOptions(
+	ctx context.Context,
+	endpointUrl string,
+	method string,
+	res any,
+	body any,
+	extraDoOptions []uhttp.DoOption,
+	opts ...ReqOpt,
+) (http.Header, annotations.Annotations, error) {
 	if c.scimClient == nil {
 		return nil, nil, fmt.Errorf("SCIM client not configured: SCIM access token is required for this operation")
 	}
@@ -145,6 +159,7 @@ func (c *Client) doScimRequest(
 		doOptions = append(doOptions, uhttp.WithJSONResponse(res))
 	}
 	doOptions = append(doOptions, uhttp.WithRatelimitData(&ratelimitData))
+	doOptions = append(doOptions, extraDoOptions...)
 
 	resp, err := c.scimClient.Do(req, doOptions...)
 	if err != nil {
