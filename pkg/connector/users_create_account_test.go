@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -47,10 +48,12 @@ type fakeMiro struct {
 	members      []miro.User
 	membersFail  int
 
-	mu          sync.Mutex
-	createCalls int
-	lookups     []url.Values
-	otherCalls  []string
+	mu           sync.Mutex
+	createCalls  int
+	lookups      []url.Values
+	fullScans    int
+	cachedLookup bool
+	otherCalls   []string
 }
 
 func (f *fakeMiro) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -60,6 +63,8 @@ func (f *fakeMiro) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case r.Method == http.MethodPost && r.URL.Path == createTestScimPath:
 		f.createCalls++
+		w.Header().Set("X-Ratelimit-Limit", "100")
+		w.Header().Set("X-Ratelimit-Remaining", "42")
 		w.WriteHeader(f.createStatus)
 		_, _ = io.WriteString(w, f.createBody)
 	case r.Method == http.MethodGet && r.URL.Path == createTestMembers:
@@ -67,18 +72,36 @@ func (f *fakeMiro) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if q.Has("emails") {
 			f.lookups = append(f.lookups, q)
 		}
+		if r.Header.Get("Cache-Control") != "no-cache" && f.createCalls > 0 {
+			f.cachedLookup = true
+		}
 		if f.membersFail != 0 {
 			w.WriteHeader(f.membersFail)
 			_, _ = io.WriteString(w, `{"status":500,"code":"internalError","message":"boom"}`)
 			return
 		}
-		data := f.members
-		if q.Has("emails") {
+		var data []miro.User
+		resp := miro.GetOrganizationMembersResponse{Limit: 50}
+		if !q.Has("emails") {
+			// Unfiltered listing: one member per page to exercise paging.
+			if f.createCalls > 0 {
+				f.fullScans++
+			}
+			idx := 0
+			if c := q.Get("cursor"); c != "" {
+				idx, _ = strconv.Atoi(c)
+			}
+			if idx < len(f.members) {
+				data = f.members[idx : idx+1]
+				if idx+1 < len(f.members) {
+					resp.Cursor = strconv.Itoa(idx + 1)
+				}
+			}
+		} else {
 			wanted := map[string]bool{}
 			for _, e := range strings.Split(q.Get("emails"), ",") {
 				wanted[e] = true
 			}
-			data = nil
 			for _, m := range f.members {
 				// Model an exact, case-sensitive provider filter.
 				if wanted[m.Email] {
@@ -86,7 +109,8 @@ func (f *fakeMiro) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		_ = json.NewEncoder(w).Encode(miro.GetOrganizationMembersResponse{Limit: 50, Data: data})
+		resp.Data = data
+		_ = json.NewEncoder(w).Encode(resp)
 	default:
 		f.otherCalls = append(f.otherCalls, r.Method+" "+r.URL.Path)
 		w.WriteHeader(http.StatusNotFound)
@@ -131,14 +155,21 @@ var existingMember = miro.User{
 // syncedResource returns what List emits for id from the same fake.
 func syncedResource(t *testing.T, b *userBuilder, id string) *v2.Resource {
 	t.Helper()
-	resources, _, err := b.List(context.Background(), nil, rs.SyncOpAttrs{PageToken: pagination.Token{}})
-	if err != nil {
-		t.Fatalf("List() error = %v", err)
-	}
-	for _, r := range resources {
-		if r.GetId().GetResource() == id {
-			return r
+	token := ""
+	for {
+		resources, res, err := b.List(context.Background(), nil, rs.SyncOpAttrs{PageToken: pagination.Token{Token: token}})
+		if err != nil {
+			t.Fatalf("List() error = %v", err)
 		}
+		for _, r := range resources {
+			if r.GetId().GetResource() == id {
+				return r
+			}
+		}
+		if res.NextPageToken == "" {
+			break
+		}
+		token = res.NextPageToken
 	}
 	t.Fatalf("List() did not emit %s", id)
 	return nil
@@ -168,6 +199,12 @@ func TestCreateAccountConflictReturnsExistingAccount(t *testing.T) {
 	if !ok {
 		t.Fatalf("CreateAccount() response = %T, want *v2.CreateAccountResponse_AlreadyExistsResult", resp)
 	}
+	if f.fullScans != 0 {
+		t.Fatalf("full scans = %d, want 0 when the email filter matches", f.fullScans)
+	}
+	if f.cachedLookup {
+		t.Fatal("member lookup after the conflict must bypass the response cache")
+	}
 	if want := syncedResource(t, b, existingMember.Id); !proto.Equal(result.GetResource(), want) {
 		t.Fatalf("AlreadyExistsResult resource differs from synced resource:\n got: %v\nwant: %v", result.GetResource(), want)
 	}
@@ -179,6 +216,50 @@ func TestCreateAccountConflictReturnsExistingAccount(t *testing.T) {
 	}
 	if len(f.otherCalls) != 0 {
 		t.Fatalf("unexpected calls (existing account must not be modified): %v", f.otherCalls)
+	}
+}
+
+func TestCreateAccountConflictFallsBackToCaseInsensitiveScan(t *testing.T) {
+	stored := existingMember
+	stored.Email = "Jane.Doe@Example.com"
+	other := existingMember
+	other.Id = "3458764500000000002"
+	other.Email = "someone.else@example.com"
+
+	tests := []struct {
+		name string
+		body string
+	}{
+		{name: "uniqueness scimType", body: scimUniqueness},
+		{name: "numeric status without scimType", body: `{` + scimErrorSchema + `,"status":409,"detail":"User already exists"}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := &fakeMiro{createStatus: http.StatusConflict, createBody: tt.body, members: []miro.User{other, stored}}
+			b := newCreateAccountTestBuilder(t, f)
+
+			// The fake's emails filter is case-sensitive, so only a scan finds it.
+			resp, plaintext, _, err := b.CreateAccount(context.Background(), createAccountInfo(t, "jane.doe@example.com"), nil)
+			if err != nil {
+				t.Fatalf("CreateAccount() error = %v", err)
+			}
+			if len(plaintext) != 0 {
+				t.Fatalf("unexpected plaintext credentials: %v", plaintext)
+			}
+			result, ok := resp.(*v2.CreateAccountResponse_AlreadyExistsResult)
+			if !ok {
+				t.Fatalf("CreateAccount() response = %T, want *v2.CreateAccountResponse_AlreadyExistsResult", resp)
+			}
+			if f.fullScans != 2 {
+				t.Fatalf("full scan pages = %d, want 2", f.fullScans)
+			}
+			if f.cachedLookup {
+				t.Fatal("member lookups after the conflict must bypass the response cache")
+			}
+			if want := syncedResource(t, b, stored.Id); !proto.Equal(result.GetResource(), want) {
+				t.Fatalf("AlreadyExistsResult resource differs from synced resource:\n got: %v\nwant: %v", result.GetResource(), want)
+			}
+		})
 	}
 }
 
@@ -254,9 +335,16 @@ func TestCreateAccountOtherErrorsUnchanged(t *testing.T) {
 			f := &fakeMiro{createStatus: tt.status, createBody: tt.body, members: []miro.User{existingMember}}
 			b := newCreateAccountTestBuilder(t, f)
 
-			resp, plaintext, _, err := b.CreateAccount(context.Background(), createAccountInfo(t, "jane.doe@example.com"), nil)
+			resp, plaintext, annos, err := b.CreateAccount(context.Background(), createAccountInfo(t, "jane.doe@example.com"), nil)
 			if err == nil {
 				t.Fatalf("CreateAccount() error = nil, response = %v", resp)
+			}
+			rl := &v2.RateLimitDescription{}
+			if ok, aerr := annos.Pick(rl); aerr != nil || !ok {
+				t.Fatalf("rate-limit annotation missing from error response (ok=%v, err=%v)", ok, aerr)
+			}
+			if tt.status == http.StatusTooManyRequests && rl.GetStatus() != v2.RateLimitDescription_STATUS_OVERLIMIT {
+				t.Fatalf("rate-limit status = %v, want OVERLIMIT", rl.GetStatus())
 			}
 			if got := status.Code(err); got != tt.want {
 				t.Fatalf("status code = %v, want %v (err: %v)", got, tt.want, err)

@@ -72,3 +72,11 @@ func (c *Client) GetOrganizationMember(ctx context.Context, organizationId strin
 func WithEmails(emails []string) ReqOpt {
 	return WithQueryParam("emails", strings.Join(emails, ","))
 }
+
+// WithNoCache makes the request bypass the HTTP client's response cache.
+func WithNoCache() ReqOpt {
+	return func(req *http.Request) *http.Request {
+		req.Header.Set("Cache-Control", "no-cache")
+		return req
+	}
+}

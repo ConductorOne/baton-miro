@@ -164,7 +164,13 @@ func (c *Client) doScimRequestWithOptions(
 	resp, err := c.scimClient.Do(req, doOptions...)
 	if err != nil {
 		l.Error("miro-connector: failed to execute request", zap.Error(err))
-		return nil, nil, err
+		if resp == nil {
+			return nil, nil, err
+		}
+		// Keep rate-limit data from error responses (e.g. 429) for the caller.
+		annos := annotations.Annotations{}
+		annos.WithRateLimiting(&ratelimitData)
+		return nil, annos, err
 	}
 	defer resp.Body.Close()
 

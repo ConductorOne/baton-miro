@@ -195,45 +195,33 @@ func (o *userBuilder) existingAccount(
 	annotations.Annotations,
 	error,
 ) {
-	// The provider's emails filter is an exact match; also ask for the
-	// lowercase form so a casing difference in the request still finds the
-	// stored address. Matching below is case-insensitive either way.
+	// The provider's emails filter may match case-sensitively, so query the
+	// requested and lowercase forms, then fall back to scanning every member
+	// if neither finds the stored address.
 	emails := []string{email}
 	if lower := strings.ToLower(email); lower != email {
 		emails = append(emails, lower)
 	}
-
-	var match *miro.User
-	cursor := ""
-	for {
-		page, pageAnnos, err := o.client.GetOrganizationMembers(ctx, o.organizationId, cursor, resourcePageSize, miro.WithEmails(emails))
-		annos = append(annos, pageAnnos...)
-		if err != nil {
-			return nil, nil, annos, wrapError(err, "failed to look up existing miro user after create conflict")
-		}
-		for i := range page.Data {
-			if !strings.EqualFold(page.Data[i].Email, email) {
-				continue
-			}
-			if match != nil && match.Id != page.Data[i].Id {
-				return nil, nil, annos, status.Error(codes.AlreadyExists, "miro-connector: create user conflict: multiple organization members match the requested email")
-			}
-			match = &page.Data[i]
-		}
-		if page.Cursor == "" || page.Cursor == cursor {
-			break
-		}
-		cursor = page.Cursor
+	matches, lookupAnnos, err := o.membersWithEmail(ctx, email, miro.WithEmails(emails))
+	annos = append(annos, lookupAnnos...)
+	if err == nil && len(matches) == 0 {
+		matches, lookupAnnos, err = o.membersWithEmail(ctx, email)
+		annos = append(annos, lookupAnnos...)
+	}
+	if err != nil {
+		return nil, nil, annos, wrapError(err, "failed to look up existing miro user after create conflict")
 	}
 
-	if match == nil {
+	switch {
+	case len(matches) == 0:
 		return nil, nil, annos, status.Error(codes.AlreadyExists, "miro-connector: create user conflict: no organization member matches the requested email")
-	}
-	if match.Id == "" {
+	case len(matches) > 1:
+		return nil, nil, annos, status.Error(codes.AlreadyExists, "miro-connector: create user conflict: multiple organization members match the requested email")
+	case matches[0].Id == "":
 		return nil, nil, annos, status.Error(codes.AlreadyExists, "miro-connector: create user conflict: matching organization member has no ID")
 	}
 
-	resource, err := userResource(match)
+	resource, err := userResource(&matches[0])
 	if err != nil {
 		return nil, nil, annos, wrapError(err, "failed to create user resource from existing miro user")
 	}
@@ -241,6 +229,36 @@ func (o *userBuilder) existingAccount(
 	return &v2.CreateAccountResponse_AlreadyExistsResult{
 		Resource: resource,
 	}, nil, annos, nil
+}
+
+// membersWithEmail pages through organization members and returns those whose
+// email equals the given one case-insensitively, deduplicated by ID.
+func (o *userBuilder) membersWithEmail(ctx context.Context, email string, opts ...miro.ReqOpt) ([]miro.User, annotations.Annotations, error) {
+	opts = append(opts, miro.WithNoCache())
+	var (
+		matches []miro.User
+		annos   annotations.Annotations
+		seen    = map[string]bool{}
+		cursor  string
+	)
+	for {
+		page, pageAnnos, err := o.client.GetOrganizationMembers(ctx, o.organizationId, cursor, resourcePageSize, opts...)
+		annos = append(annos, pageAnnos...)
+		if err != nil {
+			return nil, annos, err
+		}
+		for _, member := range page.Data {
+			if !strings.EqualFold(member.Email, email) || seen[member.Id] {
+				continue
+			}
+			seen[member.Id] = true
+			matches = append(matches, member)
+		}
+		if page.Cursor == "" || page.Cursor == cursor {
+			return matches, annos, nil
+		}
+		cursor = page.Cursor
+	}
 }
 
 // roleGrants returns grants for the user's role.

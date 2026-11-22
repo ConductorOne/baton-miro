@@ -18,12 +18,15 @@ var ErrUserAlreadyExists = errors.New("miro user already exists")
 // isScimUniquenessConflict reports whether resp is the SCIM uniqueness
 // conflict for a POST /Users (RFC 7644 section 3.3): HTTP 409 with a SCIM
 // error body whose scimType is "uniqueness", or whose scimType is omitted
-// but whose status is "409".
+// but whose status is 409 (as a string per the RFC, or a number).
 func isScimUniquenessConflict(resp *uhttp.WrapperResponse) bool {
 	if resp.StatusCode != http.StatusConflict {
 		return false
 	}
-	var scimErr SCIMError
+	var scimErr struct {
+		Status   json.RawMessage `json:"status"`
+		ScimType string          `json:"scimType"`
+	}
 	if err := json.Unmarshal(resp.Body, &scimErr); err != nil {
 		return false
 	}
@@ -31,7 +34,8 @@ func isScimUniquenessConflict(resp *uhttp.WrapperResponse) bool {
 	case "uniqueness":
 		return true
 	case "":
-		return scimErr.Status == "409"
+		s := string(scimErr.Status)
+		return s == `"409"` || s == "409"
 	default:
 		return false
 	}
