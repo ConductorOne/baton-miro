@@ -17,9 +17,10 @@ type RequestName struct {
 
 // SCIMError defines the error response from the SCIM API.
 type SCIMError struct {
-	Schemas []string `json:"schemas"`
-	Status  string   `json:"status"`
-	Detail  string   `json:"detail"`
+	Schemas  []string `json:"schemas"`
+	Status   string   `json:"status"`
+	ScimType string   `json:"scimType,omitempty"`
+	Detail   string   `json:"detail"`
 }
 
 // Error returns the error message for a SCIM error.

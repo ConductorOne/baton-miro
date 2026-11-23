@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 )
@@ -64,4 +65,18 @@ func (c *Client) GetOrganizationMember(ctx context.Context, organizationId strin
 	}
 
 	return &user, annos, nil
+}
+
+// WithEmails restricts an organization members request to the given emails.
+// Miro ignores the other filtering parameters when emails is set.
+func WithEmails(emails []string) ReqOpt {
+	return WithQueryParam("emails", strings.Join(emails, ","))
+}
+
+// WithNoCache makes the request bypass the HTTP client's response cache.
+func WithNoCache() ReqOpt {
+	return func(req *http.Request) *http.Request {
+		req.Header.Set("Cache-Control", "no-cache")
+		return req
+	}
 }

@@ -108,6 +108,20 @@ func (c *Client) doScimRequest(
 	body any,
 	opts ...ReqOpt,
 ) (http.Header, annotations.Annotations, error) {
+	return c.doScimRequestWithOptions(ctx, endpointUrl, method, res, body, nil, opts...)
+}
+
+// doScimRequestWithOptions is doScimRequest with extra response options, which
+// run on every response, including error statuses.
+func (c *Client) doScimRequestWithOptions(
+	ctx context.Context,
+	endpointUrl string,
+	method string,
+	res any,
+	body any,
+	extraDoOptions []uhttp.DoOption,
+	opts ...ReqOpt,
+) (http.Header, annotations.Annotations, error) {
 	if c.scimClient == nil {
 		return nil, nil, fmt.Errorf("SCIM client not configured: SCIM access token is required for this operation")
 	}
@@ -145,11 +159,24 @@ func (c *Client) doScimRequest(
 		doOptions = append(doOptions, uhttp.WithJSONResponse(res))
 	}
 	doOptions = append(doOptions, uhttp.WithRatelimitData(&ratelimitData))
+	doOptions = append(doOptions, extraDoOptions...)
 
 	resp, err := c.scimClient.Do(req, doOptions...)
 	if err != nil {
-		l.Error("miro-connector: failed to execute request", zap.Error(err))
-		return nil, nil, err
+		// 4xx responses are caller-handled outcomes (e.g. a uniqueness
+		// conflict); keep error-level logs for transport failures and 5xx.
+		if resp != nil && resp.StatusCode < http.StatusInternalServerError {
+			l.Debug("miro-connector: request returned client error", zap.Int("status_code", resp.StatusCode), zap.Error(err))
+		} else {
+			l.Error("miro-connector: failed to execute request", zap.Error(err))
+		}
+		if resp == nil {
+			return nil, nil, err
+		}
+		// Keep rate-limit data from error responses (e.g. 429) for the caller.
+		annos := annotations.Annotations{}
+		annos.WithRateLimiting(&ratelimitData)
+		return nil, annos, err
 	}
 	defer resp.Body.Close()
 

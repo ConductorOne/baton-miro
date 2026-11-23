@@ -2,7 +2,9 @@ package connector
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/conductorone/baton-miro/pkg/miro"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
@@ -10,6 +12,8 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
 	grant "github.com/conductorone/baton-sdk/pkg/types/grant"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type userBuilder struct {
@@ -158,8 +162,12 @@ func (o *userBuilder) CreateAccount(
 		}
 	}
 
-	newUser, annos, err := o.client.CreateUser(ctx, profile["email"].(string), profile["first_name"].(string), profile["last_name"].(string))
+	email := profile["email"].(string)
+	newUser, annos, err := o.client.CreateUser(ctx, email, profile["first_name"].(string), profile["last_name"].(string))
 	if err != nil {
+		if errors.Is(err, miro.ErrUserAlreadyExists) {
+			return o.existingAccount(ctx, email, annos)
+		}
 		return nil, nil, annos, wrapError(err, "failed to create miro user")
 	}
 
@@ -171,6 +179,112 @@ func (o *userBuilder) CreateAccount(
 	return &v2.CreateAccountResponse_SuccessResult{
 		Resource: resource,
 	}, nil, annos, nil
+}
+
+// existingAccount resolves a SCIM uniqueness conflict to the organization
+// member that List emits for the requested email, so the caller can bind it.
+// It only reads: the existing user is never re-invited or modified, and no
+// credentials are returned for an account this connector did not create.
+func (o *userBuilder) existingAccount(
+	ctx context.Context,
+	email string,
+	annos annotations.Annotations,
+) (
+	connectorbuilder.CreateAccountResponse,
+	[]*v2.PlaintextData,
+	annotations.Annotations,
+	error,
+) {
+	// The provider's emails filter may match case-sensitively, so query the
+	// requested and lowercase forms, then fall back to scanning every member
+	// if neither finds the stored address.
+	emails := []string{email}
+	if lower := strings.ToLower(email); lower != email {
+		emails = append(emails, lower)
+	}
+	matches, _, err := o.membersWithEmail(ctx, email, &annos, 0, miro.WithEmails(emails))
+	truncated := false
+	if err == nil && len(matches) == 0 {
+		matches, truncated, err = o.membersWithEmail(ctx, email, &annos, maxConflictScanPages)
+	}
+	if err != nil {
+		return nil, nil, annos, wrapError(err, "failed to look up existing miro user after create conflict")
+	}
+
+	switch {
+	case len(matches) == 0 && truncated:
+		return nil, nil, annos, status.Errorf(codes.AlreadyExists,
+			"miro-connector: create user conflict: no organization member matches the requested email in the first %d members scanned",
+			maxConflictScanPages*resourcePageSize)
+	case len(matches) == 0:
+		return nil, nil, annos, status.Error(codes.AlreadyExists, "miro-connector: create user conflict: no organization member matches the requested email")
+	case len(matches) > 1:
+		return nil, nil, annos, status.Error(codes.AlreadyExists, "miro-connector: create user conflict: multiple organization members match the requested email")
+	case matches[0].Id == "":
+		return nil, nil, annos, status.Error(codes.AlreadyExists, "miro-connector: create user conflict: matching organization member has no ID")
+	}
+
+	resource, err := userResource(&matches[0])
+	if err != nil {
+		return nil, nil, annos, wrapError(err, "failed to create user resource from existing miro user")
+	}
+
+	return &v2.CreateAccountResponse_AlreadyExistsResult{
+		Resource: resource,
+	}, nil, annos, nil
+}
+
+// maxConflictScanPages bounds the unfiltered member scan after a create
+// conflict so one provisioning request cannot walk a very large organization.
+const maxConflictScanPages = 100
+
+// membersWithEmail pages through organization members and returns those whose
+// email equals the given one case-insensitively, deduplicated by ID. It stops
+// after maxPages pages when maxPages > 0 and reports whether it was truncated.
+// Each response's rate-limit data replaces the previous one in annos.
+func (o *userBuilder) membersWithEmail(
+	ctx context.Context,
+	email string,
+	annos *annotations.Annotations,
+	maxPages int,
+	opts ...miro.ReqOpt,
+) ([]miro.User, bool, error) {
+	opts = append(opts, miro.WithNoCache())
+	var (
+		matches []miro.User
+		seen    = map[string]bool{}
+		cursor  string
+	)
+	for pages := 0; ; pages++ {
+		if maxPages > 0 && pages >= maxPages {
+			return matches, true, nil
+		}
+		page, pageAnnos, err := o.client.GetOrganizationMembers(ctx, o.organizationId, cursor, resourcePageSize, opts...)
+		updateRateLimit(annos, pageAnnos)
+		if err != nil {
+			return nil, false, err
+		}
+		for _, member := range page.Data {
+			if !strings.EqualFold(member.Email, email) || seen[member.Id] {
+				continue
+			}
+			seen[member.Id] = true
+			matches = append(matches, member)
+		}
+		if page.Cursor == "" || page.Cursor == cursor {
+			return matches, false, nil
+		}
+		cursor = page.Cursor
+	}
+}
+
+// updateRateLimit replaces the rate-limit annotation in dst with the one in
+// src, if any, so callers see the most recent response's limits.
+func updateRateLimit(dst *annotations.Annotations, src annotations.Annotations) {
+	rl := &v2.RateLimitDescription{}
+	if ok, err := src.Pick(rl); err == nil && ok {
+		dst.Update(rl)
+	}
 }
 
 // roleGrants returns grants for the user's role.
